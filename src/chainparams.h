@@ -83,29 +83,6 @@ public:
     std::string SporkPubKey() const { return strSporkPubKey; }
     std::string ZnodePaymentPubKey() const { return strZnodePaymentsPubKey; }
 	
-	/** Zerocoin-related block numbers when features are changed */
-	int nSpendV15StartBlock;
-	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
-	
-	int nModulusV2StartBlock;
-    int nModulusV1MempoolStopBlock;
-	int nModulusV1StopBlock;
-
-    /** Zerocoin **/
-    // TODO: IMPLEMENT METHOD FOR RETURNING ZEROCOIN PARAMS AND REPLACE USES OF ZEROCOIN PARAMS CONSTRUCTOR
-    libzerocoin::ZerocoinParams* Zerocoin_Params() const;
-    std::string Zerocoin_Modulus() const { return zerocoinModulus; }
-    int Zerocoin_MaxSpendsPerTransaction() const { return nMaxZerocoinSpendsPerTransaction; }
-    CAmount Zerocoin_MintFee() const { return nMinZerocoinMintFee; }
-    int Zerocoin_MintRequiredConfirmations() const { return nMintRequiredConfirmations; }
-    int Zerocoin_RequiredAccumulation() const { return nRequiredAccumulation; }
-    int Zerocoin_DefaultSpendSecurity() const { return nDefaultSecurityLevel; }
-    int Zerocoin_HeaderVersion() const { return nZerocoinHeaderVersion; }
-    int Zerocoin_RequiredStakeDepth() const { return nZerocoinRequiredStakeDepth; }
-    int Zerocoin_StartHeight() const {return nZerocoinStartHeight;}
-
-    /** Height or time based activations */
-    int ModifierUpgradeBlock() const { return nModifierUpdateBlock; }
 protected:
     CChainParams() {}
 
@@ -131,23 +108,7 @@ protected:
     int nFulfilledRequestExpireTime;
     std::string strSporkPubKey;
     std::string strZnodePaymentsPubKey;
-    ChainTxData chainTxData;
-    bool m_fallback_fee_enabled;
-    int nModifierUpdateBlock;
 
-    // zerocoin
-    std::string zerocoinModulus;
-    int nMaxZerocoinSpendsPerTransaction;
-    CAmount nMinZerocoinMintFee;
-    CAmount nInvalidAmountFiltered;
-    int nMintRequiredConfirmations;
-    int nRequiredAccumulation;
-    int nDefaultSecurityLevel;
-    int nZerocoinHeaderVersion;
-    int64_t nBudget_Fee_Confirmations;
-    int nZerocoinStartHeight;
-    int nZerocoinStartTime;
-    int nZerocoinRequiredStakeDepth;
 };
 
 /**

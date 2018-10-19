@@ -9,13 +9,13 @@
 
 #include "chainparams.h"
 #include "db.h"
-#include "kernel.h"
+#include <kernel.h>
 #include "policy/policy.h"
 #include "script/interpreter.h"
 #include "timedata.h"
 #include "util.h"
 #include "stakeinput.h"
-#include "veil/zchain.h"
+#include <versionbits.h>
 
 using namespace std;
 
@@ -97,12 +97,6 @@ static bool SelectBlockFromCandidates(
         const CBlockIndex* pindex = mapBlockIndex[item.second];
         if (fSelected && pindex->GetBlockTime() > nSelectionIntervalStop)
             break;
-
-        //if the lowest block height (vSortedByTimestamp[0]) is >= switch height, use new modifier calc
-        if (fFirstRun){
-            fModifierV2 = pindex->nHeight >= Params().ModifierUpgradeBlock();
-            fFirstRun = false;
-        }
 
         if (mapSelectedBlocks.count(pindex->GetBlockHash()) > 0)
             continue;
@@ -298,23 +292,6 @@ bool CheckStake(const CDataStream& ssUniqueID, CAmount nValueIn, const uint64_t 
 }
 
 
-//Sets nValueIn with the weighted amount given a certain zerocoin denomination
-void WeightStake(CAmount& nValueIn, const libzerocoin::CoinDenomination denom)
-{
-    if (denom == libzerocoin::CoinDenomination::ZQ_ONE_HUNDRED) {
-        //10% reduction
-        nValueIn = nValueIn * 0.9;
-    }
-    else if (denom == libzerocoin::CoinDenomination::ZQ_ONE_THOUSAND) {
-        //20% reduction
-        nValueIn = nValueIn * 0.8;
-    }
-    else if (denom == libzerocoin::CoinDenomination::ZQ_TEN_THOUSAND) {
-        //30% reduction
-        nValueIn = nValueIn * 0.7;
-    }
-}
-
 bool Stake(CZPivStake* stakeInput, unsigned int nBits, unsigned int nTimeBlockFrom, unsigned int& nTimeTx, uint256& hashProofOfStake)
 {
     if (nTimeTx < nTimeBlockFrom)
@@ -339,7 +316,6 @@ bool Stake(CZPivStake* stakeInput, unsigned int nBits, unsigned int nTimeBlockFr
     int nHashDrift = 30;
     CDataStream ssUniqueID = stakeInput->GetUniqueness();
     CAmount nValueIn = stakeInput->GetValue();
-    WeightStake(nValueIn, stakeInput->GetDenomination());
     for (int i = 0; i < nHashDrift; i++) //iterate the hashing
     {
         //new block came in, move on
