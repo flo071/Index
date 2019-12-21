@@ -4223,7 +4223,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     return true;
 }
 
-CBlockIndex *AddToBlockIndex(const CBlockHeader &block) {
+/*CBlockIndex *AddToBlockIndex(const CBlockHeader &block) {
     // Check for duplicate
     uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
@@ -4253,7 +4253,7 @@ CBlockIndex *AddToBlockIndex(const CBlockHeader &block) {
     setDirtyBlockIndex.insert(pindexNew);
 
     return pindexNew;
-}
+}*/
 
 /** Mark a block as having its data received and checked (up to BLOCK_VALID_TRANSACTIONS). */
 bool ReceivedBlockTransactions(const CBlock &block, CValidationState &state, CBlockIndex *pindexNew,

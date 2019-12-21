@@ -12,6 +12,7 @@
 #include "utilstrencodings.h"
 #include "crypto/common.h"
 #include "chainparams.h"
+#include "chain.h"
 #include "crypto/scrypt.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
@@ -100,4 +101,14 @@ int64_t GetBlockWeight(const CBlock& block)
 
 void CBlock::ZerocoinClean() const {
     zerocoinTxInfo = nullptr;
+}
+
+bool CBlock::IsProofOfStake() const
+{
+    return (vtx.size() > 1 && vtx[1]->IsCoinStake());
+}
+
+bool CBlock::IsProofOfWork() const
+{
+    return !IsProofOfStake();
 }
