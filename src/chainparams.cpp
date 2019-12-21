@@ -136,7 +136,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
 	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
-        consensus.nDontAllowDupTxsStartBlock = 119700;
+        consensus.nDontAllowDupTxsStartBlock = 2;
 
         // znode params
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
@@ -155,7 +155,16 @@ public:
         consensus.nInitialMTPDifficulty = 0x1c021e57;
         consensus.nMTPRewardReduction = 2;
 
-        consensus.nDisableZerocoinStartBlock = 157000;
+        consensus.nDisableZerocoinStartBlock = 2;
+
+        //START POW/POS hybrid params
+        consensus.nStakeMinAge = 60 * 60;
+        consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
+        consensus.nPosTargetSpacing = consensus.nPowTargetSpacing;
+        consensus.nPosTargetTimespan = consensus.nPowTargetTimespan;
+        consensus.nFirstPoSBlock = 180; //From this block proof of stake blocks start and are accepted
+        consensus.nModifierInterval = 60 * 20;
+        //End POW/POS  hybrid params
 
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 

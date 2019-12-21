@@ -121,8 +121,8 @@ static bool SelectBlockFromCandidates(
             *pindexSelected = (const CBlockIndex*) pindex;
         }
     }
-    if (gArgs.GetBoolArg("-printstakemodifier", false))
-        LogPrint(BCLog::KERNEL, "%s : selection hash=%s\n", __func__, hashBest.ToString().c_str());
+    if (GetBoolArg("-printstakemodifier", false))
+        LogPrint("kernel", "%s : selection hash=%s\n", __func__, hashBest.ToString().c_str());
     return fSelected;
 }
 
@@ -192,11 +192,11 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexCurrent, uint64_t &nStake
         nStakeModifierNew |= (((uint64_t)pindex->GetStakeEntropyBit()) << nRound);
         // add the selected block from candidates to selected list
         mapSelectedBlocks.insert(make_pair(pindex->GetBlockHash(), pindex));
-        LogPrint(BCLog::KERNEL, "%s : selected round %d stop=%s height=%d bit=%d\n", __func__, nRound, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", nSelectionIntervalStop).c_str(), pindex->nHeight, pindex->GetStakeEntropyBit());
+        LogPrint("kernel", "%s : selected round %d stop=%s height=%d bit=%d\n", __func__, nRound, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", nSelectionIntervalStop).c_str(), pindex->nHeight, pindex->GetStakeEntropyBit());
     }
 
     // Print selection map for visualization of the selected blocks
-    if (gArgs.GetBoolArg("-debug", false) && gArgs.GetBoolArg("-printstakemodifier", false))
+    if (GetBoolArg("-debug", false) && GetBoolArg("-printstakemodifier", false))
     {
         string strSelectionMap = "";
         // '-' indicates proof-of-work blocks not selected
@@ -332,7 +332,7 @@ bool CheckKernelScript(CScript scriptVin, CScript scriptVout)
 // Check kernel hash target and coinstake signature
 bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
 {
-    const CTransactionRef &tx = block.vtx[1];
+    const CTransactionRef &tx = MakeTransactionRef(block.vtx[1]);
     if (!tx->IsCoinStake())
         return error("CheckProofOfStake() : called on non-coinstake %s", tx->GetHash().ToString().c_str());
 
@@ -342,12 +342,13 @@ bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
     // First try finding the previous transaction in database
     uint256 hashBlock;
     CTransactionRef txPrev;
+    CTransaction txPrevLegacy;
 
     const auto &cons = Params().GetConsensus();
 
-    if (!GetTransaction(txin.prevout.hash, txPrev, cons, hashBlock, true))
+    if (!GetTransaction(txin.prevout.hash, txPrevLegacy, cons, hashBlock, true))
         return error("CheckProofOfStake() : INFO: read txPrev failed");
-
+    // txPrev = MakeTransactionRef(txPrevLegacy);
     CTxOut prevTxOut = txPrev->vout[txin.prevout.n];
     CBlockIndex* pindex = NULL;
     BlockMap::iterator it = mapBlockIndex.find(hashBlock);

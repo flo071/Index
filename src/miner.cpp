@@ -42,7 +42,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <queue>
 #include <unistd.h>
-
+#include "blocksigner.h"
 using namespace std;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -159,7 +159,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     CAmount coin = COIN / nFeeReductionFactor;
 
     resetBlock();
-    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
@@ -1061,11 +1061,13 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     return true;
 }
 
-void static ZcoinMiner(const CChainParams &chainparams) {
+void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("index-miner");
 
     unsigned int nExtraNonce = 0;
+    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    CWallet *pwallet = new CWallet(walletFile);
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -1116,8 +1118,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
             LogPrintf("BEFORE: pblocktemplate\n");
-            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
-                coinbaseScript->reserveScript,false,{}));
+            unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
+                coinbaseScript->reserveScript,fProofOfStake,{}));
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -1129,6 +1131,23 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
+            //Sign block
+            if (fProofOfStake)
+            {
+                LogPrintf("CPUMiner : proof-of-stake block found %s \n", pblock->GetHash().ToString().c_str());
+
+                if (!SignBlock(*pblock, *pwallet)) {
+                    LogPrintf("VESTXMiner(): Signing new block failed \n");
+                    throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
+                }
+
+                LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
+            }
+                // check if block is valid
+            CValidationState state;
+            if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+                throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+            }
             LogPrintf("BEFORE: search\n");
             //
             // Search
@@ -1144,18 +1163,18 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
 
-            while (true) {
+            while (!fProofOfStake) {
                 // Check if something found
                 uint256 thash;
-                   ///change to x116rv3
-                while (true) {
+                while (!fProofOfStake) {
+                    //get x16rv2 hash from block
                     thash = pblock->GetPoWHash();
 
                     //LogPrintf("*****\nhash   : %s  \ntarget : %s\n", UintToArith256(thash).ToString(), hashTarget.ToString());
 
                     if (UintToArith256(thash) <= hashTarget) {
                         // Found a solution
-                        LogPrintf("Found a solution. Hash: %s", UintToArith256(thash).ToString());
+                        LogPrintf("Found a POW solution. Hash: %s", UintToArith256(thash).ToString());
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
 //                        CheckWork(pblock, *pwallet, reservekey);
                         LogPrintf("ZcoinMiner:\n");
@@ -1207,6 +1226,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
 
 void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
+    //This method is only used for Mining,not for ProofofStake,we use threadstakeminter for staking
     static boost::thread_group* minerThreads = NULL;
 
     if (nThreads < 0)
@@ -1224,7 +1244,7 @@ void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainpar
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&ZcoinMiner, boost::cref(chainparams)));
+        minerThreads->create_thread(boost::bind(&ZcoinMiner, boost::cref(chainparams),false));
 }
 
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
@@ -1244,4 +1264,19 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
+}
+void ThreadStakeMinter(const CChainParams &chainparams)
+{
+    boost::this_thread::interruption_point();
+    LogPrintf("ThreadStakeMinter started\n");
+    try {
+        ZcoinMiner(chainparams, true);
+        boost::this_thread::interruption_point();
+    } catch (std::exception& e) {
+        LogPrintf("ThreadStakeMinter() exception %s\n", e.what());
+    } catch (...) {
+        LogPrintf("ThreadStakeMinter() error \n");
+    }
+    LogPrintf("ThreadStakeMinter exiting,\n");
+
 }

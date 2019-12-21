@@ -249,8 +249,10 @@ BITCOIN_CORE_H = \
   coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
-  mtpstate.h
-
+  mtpstate.h \ 
+  kernel.h \
+  blocksigner.h \
+  messagesigner.h 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
 	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
@@ -265,6 +267,9 @@ libbitcoin_server_a_SOURCES = \
   bloom.cpp \
   blockencodings.cpp \
   chain.cpp \
+  kernel.cpp \
+  blocksigner.cpp \
+  messagesigner.cpp \
   checkpoints.cpp \
   httprpc.cpp \
   httpserver.cpp \

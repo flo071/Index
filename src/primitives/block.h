@@ -238,6 +238,8 @@ public:
 
     // memory only, zerocoin tx info after V3-sigma.
     mutable std::shared_ptr<sigma::CSigmaTxInfo> sigmaTxInfo;
+    // ppcoin: block signature - signed by one of the coin base txout[N]'s owner
+    std::vector<unsigned char> vchBlockSig;
 
     CBlock()
     {
@@ -262,6 +264,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
+        if(vtx.size() > 1 && vtx[1].IsCoinStake())
+		   READWRITE(vchBlockSig);
     }
 
     template <typename Stream>
@@ -277,6 +281,7 @@ public:
         txoutZnode = CTxOut();
         voutSuperblock.clear();
         fChecked = false;
+        vchBlockSig.clear();
     }
 
     CBlockHeader GetBlockHeader() const

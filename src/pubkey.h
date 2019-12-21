@@ -40,6 +40,12 @@ class CPubKey
 {
 public:
     static constexpr unsigned int COMPRESSED_PUBLIC_KEY_SIZE = 33;
+    enum class InputScriptType {
+        SPENDP2SHWITNESS,
+        SPENDWITNESS,
+        SPENDP2PKH,
+        SPENDUNKNOWN
+    };
 
 private:
 

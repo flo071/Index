@@ -92,6 +92,14 @@ struct Params {
     //int nZnodePaymentsIncreasePeriod; // in blocks
     //int nSuperblockStartBlock;
 
+    // Proof of stake params
+    int64_t nPosTargetSpacing;
+    int64_t nPosTargetTimespan;
+    int nFirstPoSBlock;
+    int nStakeMinAge;
+    int nStakeMaxAge;
+    int64_t nModifierInterval;
+    
 	/** Zerocoin-related block numbers when features are changed */
     int nCheckBugFixedAtBlock;
     int nZnodePaymentsBugFixedAtBlock;

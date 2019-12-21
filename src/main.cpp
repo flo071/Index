@@ -76,7 +76,7 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/thread.hpp>
-
+#include "kernel.h"
 #include <iostream> // delete me
 
 using namespace std;
@@ -84,6 +84,7 @@ using namespace std;
 #if defined(NDEBUG)
 # error "Index cannot be compiled without assertions."
 #endif
+static std::map<uint256, uint256> mapProofOfStake;
 
 /**
  * Global state
@@ -2072,7 +2073,29 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     }
     return true;
 }
+bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
+{
+    block.SetNull();
 
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull())
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+
+    // Read block
+    try {
+        filein >> block;
+    }
+    catch (const std::exception& e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+    }
+
+    // Check the header
+    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
+        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+
+    return true;
+}
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
@@ -4473,7 +4496,24 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                 return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
             }
         }
+    if (block.IsProofOfStake()) {
+        // Second transaction must be coinstake, the rest must not be
+        if (block.vtx.empty() || !block.vtx[1].IsCoinStake())
+            return state.DoS(100, error("CheckBlock() : second tx is not coinstake"));
+        for (unsigned int i = 2; i < block.vtx.size(); i++)
+            if (block.vtx[i].IsCoinStake())
+                return state.DoS(100, error("CheckBlock() : more than one coinstake"));
 
+        uint256 hashProofOfStake;
+        uint256 hash = block.GetHash();
+
+        if(!CheckProofOfStake(block, hashProofOfStake)) {
+            return state.DoS(100, error("CheckBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str()));
+        }
+
+        if(!mapProofOfStake.count(hash)) // add to mapProofOfStake
+           mapProofOfStake.insert(std::make_pair(hash, hashProofOfStake));
+    }
         // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
         if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
             // We should never accept block which conflicts with completed transaction lock,
