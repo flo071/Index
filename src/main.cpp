@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2018-2019 The VESTX Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -92,6 +93,7 @@ CCriticalSection cs_main;
 
 BlockMap mapBlockIndex;
 CChain chainActive;
+std::map<COutPoint, int> mapStakeSpent;
 CBlockIndex *pindexBestHeader = NULL;
 int64_t nTimeBestReceived = 0;
 CWaitableCriticalSection csBestBlock;
@@ -2950,7 +2952,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
-
+    CAmount nValueOut = 0;
+    CAmount nValueIn = 0;
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
 
@@ -3016,6 +3019,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         txdata.emplace_back(tx);
         if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
+            if (!tx.IsCoinStake())
+                nFees += view.GetValueIn(tx) - tx.GetValueOut();
+            nValueIn += view.GetValueIn(tx);
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
 
             std::vector <CScriptCheck> vChecks;
@@ -3026,6 +3032,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                              tx.GetHash().ToString(), FormatStateMessage(state));
             control.Add(vChecks);
         }
+        nValueOut += tx.GetValueOut();
 
         CTxUndo undoDummy;
         if (i > 0) {
@@ -3040,6 +3047,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     block.zerocoinTxInfo->Complete();
     block.sigmaTxInfo->Complete();
+    // ppcoin: track money supply and mint amount info
+    CAmount nMoneySupplyPrev = pindex->pprev ? pindex->pprev->nMoneySupply : 0;
+    pindex->nMoneySupply = nMoneySupplyPrev + nValueOut - nValueIn;
+    pindex->nMint = pindex->nMoneySupply - nMoneySupplyPrev;
 
     int64_t nTime3 = GetTimeMicros();
     nTimeConnect += nTime3 - nTime2;
@@ -3060,12 +3071,22 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     // the peer who sent us this block is missing some data and wasn't able
     // to recognize that block is actually invalid.
     // TODO: resync data (both ways?) and try to reprocess this block later.
+    bool isPoWBlock = block.IsProofOfWork();
+    //Debug and general info in log
+    if (isPoWBlock)
+       LogPrintf("ConnectBlock::Block is proof of work.\n");
+    else
+       LogPrintf("ConnectBlock::Block is proof of stake.\n");
+    
+    //Log what coinbasetx will be
+    LogPrintf("coinbaseTransaction will be %s\n",!isPoWBlock ? "block.vtx[1]" : "block.vtx[0]");
     std::string strError = "";
+    const auto& coinbaseTransaction = (!isPoWBlock ? block.vtx[1] : block.vtx[0]);
     if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
         return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
-    if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
+    if (!IsBlockPayeeValid(coinbaseTransaction, pindex->nHeight, blockReward, block.IsMTP())) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
@@ -3127,6 +3148,29 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     if (fTimestampIndex)
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
             return AbortNode(state, "Failed to write timestamp index");
+
+    // add new entries
+    for (const CTransaction ptx: block.vtx) {
+        const CTransaction& tx = ptx;
+        if (tx.IsCoinBase())
+            continue;
+        for (const CTxIn in: tx.vin) {
+            LogPrintf("mapStakeSpent: Insert %s | %u\n", in.prevout.ToString(), pindex->nHeight);
+            mapStakeSpent.insert(std::make_pair(in.prevout, pindex->nHeight));
+        }
+    }
+
+    // delete old entries
+    for (auto it = mapStakeSpent.begin(); it != mapStakeSpent.end();) {
+        if (it->second < pindex->nHeight - Params().MaxReorganizationDepth()) {
+            LogPrintf("mapStakeSpent: Erase %s | %u\n", it->first.ToString(), it->second);
+            it = mapStakeSpent.erase(it);
+        }else {
+            it++;
+        }
+    }
+
+    assert(pindex->phashBlock);
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());

@@ -160,6 +160,9 @@ private:
     int64_t nLockTimeCutoff;
     const CChainParams& chainparams;
 
+    // Stake info
+    int64_t nLastCoinStakeSearchTime = 0;
+
     // Variables used for addPriorityTxs
     int lastFewTxs;
     bool blockFinished;
@@ -167,7 +170,7 @@ private:
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
-    CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, const vector<uint256>& tx_ids);
+    CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, bool fProofOfStake, const vector<uint256>& tx_ids);
     CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
 
 private:

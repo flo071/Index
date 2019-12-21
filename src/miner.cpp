@@ -134,8 +134,9 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-CBlockTemplate* BlockAssembler::CreateNewBlock(
+CBlockTemplate* BlockAssembler::CreateNewBlock(CWallet *wallet,
     const CScript& scriptPubKeyIn,
+     bool fProofOfStake,
     const vector<uint256>& tx_ids)
 {
     // Create new block
@@ -168,75 +169,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
-    // // To founders and investors
-    // if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
-    //     CScript FOUNDER_1_SCRIPT;
-    //     CScript FOUNDER_2_SCRIPT;
-    //     CScript FOUNDER_3_SCRIPT;
-    //     CScript FOUNDER_4_SCRIPT;
-    //     CScript FOUNDER_5_SCRIPT;
-    //     if (nHeight < params.nZnodePaymentsStartBlock) {
-    //         // Take some reward away from us
-    //         coinbaseTx.vout[0].nValue = -10 * coin;
-
-    //         if (params.IsMain() && (GetAdjustedTime() > nStartRewardTime)) {
-    //             FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
-    //             if (nHeight + 1 < 14000) {
-    //                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
-    //             } else {
-    //                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
-    //             }
-    //             FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
-    //             FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
-    //             FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
-    //         } else if (params.IsMain() && (GetAdjustedTime() <= nStartRewardTime)) {
-    //             throw std::runtime_error("CreateNewBlock() : Create new block too early");
-    //         } else if (!params.IsMain()) {
-    //             FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
-    //             FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
-    //             FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
-    //             FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get());
-    //             FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get());
-    //         }
-
-    //         // And give it to the founders
-    //         coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
-    //     } else if (nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
-    //         // Take some reward away from us
-    //         coinbaseTx.vout[0].nValue = -7 * coin;
-
-    //         if (params.IsMain() && (GetAdjustedTime() > nStartRewardTime)) {
-    //             FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
-    //             if (nHeight + 1 < 14000) {
-    //                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
-    //             } else {
-    //                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
-    //             }
-    //             FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
-    //             FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
-    //             FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
-    //         } else if (params.IsMain() && (GetAdjustedTime() <= nStartRewardTime)) {
-    //             throw std::runtime_error("CreateNewBlock() : Create new block too early");
-    //         } else if (!params.IsMain()) {
-    //             FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
-    //             FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
-    //             FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
-    //             FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve").Get());
-    //             FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get());
-    //         }
-
-    //         // And give it to the founders
-    //         coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(3 * coin, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-    //         coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
-    //     }
-    // }
 
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
@@ -538,7 +470,34 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
+    if(fProofOfStake && !sporkManager.IsSporkActive(Spork::SPORK_15_POS_DISABLED))
+    {
+        assert(wallet);
+        boost::this_thread::interruption_point();
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        CMutableTransaction coinstakeTx;
+        int64_t nSearchTime = pblock->nTime; // search to current time
+        bool fStakeFound = false;
+        if (nSearchTime >= nLastCoinStakeSearchTime) {
+            unsigned int nTxNewTime = 0;
+            if (wallet->CreateCoinStake(*wallet, pblock->nBits, blockReward,
+                                        coinstakeTx, nTxNewTime,
+                                        vwtxPrev, fIncludeWitness))
+            {
+                pblock->nTime = nTxNewTime;
+                coinbaseTx.vout[0].SetEmpty();
+                pblock->vtx.emplace_back(MakeTransactionRef(coinstakeTx));
 
+                fStakeFound = true;
+            }
+
+            nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
+            nLastCoinStakeSearchTime = nSearchTime;
+        }
+
+        if (!fStakeFound)
+            return nullptr;
+    }
         // Compute final coinbase transaction.
         coinbaseTx.vout[0].nValue += blockReward;
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
