@@ -204,6 +204,9 @@ public:
     //! Change to 64-bit type when necessary; won't happen before 2030
     unsigned int nChainTx;
 
+    //! (memory only) Maximum nTime in the chain up to and including this block.
+    unsigned int nTimeMax;
+
     //! Verification status of this block. See enum BlockStatus
     unsigned int nStatus;
 
@@ -285,6 +288,7 @@ public:
         nStakeModifierChecksum = 0;
         prevoutStake.SetNull();
         nStakeTime = 0;
+        nTimeMax = 0;
 
         nVersion       = 0;
         hashMerkleRoot = uint256();
@@ -324,6 +328,7 @@ public:
         nStakeModifier = 0;
         nStakeModifierChecksum = 0;
         hashProofOfStake = uint256();
+        nTimeMax = 0;
 
         if (block.IsProofOfStake()) {
             SetProofOfStake();
@@ -394,6 +399,11 @@ public:
     int64_t GetBlockTime() const
     {
         return (int64_t)nTime;
+    }
+
+    int64_t GetBlockTimeMax() const
+    {
+        return (int64_t)nTimeMax;
     }
 
     enum { nMedianTimeSpan=11 };

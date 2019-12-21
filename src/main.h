@@ -327,6 +327,7 @@ void FindFilesToPrune(std::set<int>& setFilesToPrune, uint64_t nPruneAfterHeight
  */
 void UnlinkPrunedFiles(std::set<int>& setFilesToPrune);
 
+CBlockIndex* AddToBlockIndex(const CBlockHeader& block, bool fProofOfStake = false);
 /** Create a new block index entry for a given block hash */
 CBlockIndex * InsertBlockIndex(uint256 hash);
 /** Abort with a message */
