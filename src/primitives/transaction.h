@@ -191,6 +191,11 @@ public:
         nValue = 0;
         scriptPubKey.clear();
     }
+
+    bool IsEmpty() const
+    {
+        return (nValue == 0 && scriptPubKey.empty());
+    }
     
     uint256 GetHash() const;
 

@@ -18,6 +18,91 @@
 
 #include <boost/foreach.hpp>
 #include <boost/unordered_map.hpp>
+/**
+ * A UTXO entry.
+ *
+ * Serialized format:
+ * - VARINT((coinbase ? 1 : 0) | (height << 1))
+ * - the non-spent CTxOut (via CTxOutCompressor)
+ */
+class Coin
+{
+public:
+    //! unspent transaction output
+    CTxOut out;
+
+    //! whether containing transaction was a coinbase
+    unsigned int fCoinBase : 1;
+    //! whether containing transaction was a coinstake
+    unsigned int fCoinStake : 1;
+
+    //! at which height this containing transaction was included in the active block chain
+    uint32_t nHeight : 30;
+
+    //! construct a Coin from a CTxOut and height/coinbase information.
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out(std::move(outIn)),
+        fCoinBase(fCoinBaseIn),
+        fCoinStake(fCoinStakeIn),
+        nHeight(nHeightIn)
+    { }
+
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out(outIn),
+        fCoinBase(fCoinBaseIn),
+        fCoinStake(fCoinStakeIn),
+        nHeight(nHeightIn)
+    { }
+
+    void Clear() {
+        out.SetNull();
+        fCoinBase = false;
+        fCoinStake = false;
+        nHeight = 0;
+    }
+
+    //! empty constructor
+    Coin() : fCoinBase(false), fCoinStake(false), nHeight(0) { }
+
+    bool IsCoinBase() const {
+        return fCoinBase;
+    }
+
+    bool IsCoinStake() const {
+        return fCoinStake;
+    }
+
+    template<typename Stream>
+    void Serialize(Stream &s) const {
+        assert(!IsSpent());
+        std::bitset<32> code(nHeight);
+        code[30] = fCoinStake;
+        code[31] = fCoinBase;
+        ::Serialize(s, VARINT(code.to_ulong()));
+        ::Serialize(s, CTxOutCompressor(REF(out)));
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream &s) {
+        uint32_t code = 0;
+        ::Unserialize(s, VARINT(code));
+        std::bitset<32> bitset(code);
+        fCoinBase = bitset[31];
+        fCoinStake = bitset[30];
+        bitset.reset(30);
+        bitset.reset(31);
+        nHeight = bitset.to_ulong();
+        ::Unserialize(s, CTxOutCompressor(out));
+    }
+
+    bool IsSpent() const {
+        return out.IsNull();
+    }
+
+    size_t DynamicMemoryUsage() const {
+        return memusage::DynamicUsage(out.scriptPubKey);
+    }
+};
 
 /** 
  * Pruned version of CTransaction: only retains metadata and unspent transaction outputs
@@ -77,9 +162,6 @@ public:
     //! whether transaction is a coinbase
     bool fCoinBase;
 
-    //! whether containing transaction was a coinstake
-    unsigned int fCoinStake : 1;
-
     //! unspent transaction outputs; spent outputs are .IsNull(); spent outputs at the end of the array are dropped
     std::vector<CTxOut> vout;
 
@@ -92,32 +174,26 @@ public:
 
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
-        fCoinBase = tx.IsCoinStake();
         vout = tx.vout;
         nHeight = nHeightIn;
         nVersion = tx.nVersion;
         ClearUnspendable();
     }
 
-    //! construct a Coin from a CTxOut and height/coinbase information.
-    Coin(const CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
-        out(std::move(outIn)),
-        fCoinBase(fCoinBaseIn),
-        fCoinStake(fCoinStakeIn),
-        nHeight(nHeightIn)
-    { }
+    //! construct a CCoins from a CTransaction, at a given height
+    CCoins(const CTransaction &tx, int nHeightIn) {
+        FromTx(tx, nHeightIn);
+    }
 
     void Clear() {
         fCoinBase = false;
-        fCoinStake = false;
         std::vector<CTxOut>().swap(vout);
         nHeight = 0;
         nVersion = 0;
     }
 
     //! empty constructor
-    Coin() : fCoinBase(false), fCoinStake(false), nHeight(0) { }
-
+    CCoins() : fCoinBase(false), vout(0), nHeight(0), nVersion(0) { }
 
     //!remove spent outputs at the end of vout
     void Cleanup() {
@@ -160,10 +236,6 @@ public:
 
     bool IsCoinBase() const {
         return fCoinBase;
-    }
-
-    bool IsCoinStake() const {
-        return fCoinStake;
     }
 
     unsigned int GetSerializeSize(int nType, int nVersion) const {
@@ -275,25 +347,6 @@ public:
             ret += RecursiveDynamicUsage(out.scriptPubKey);
         }
         return ret;
-    }
-};
-
-class SaltedTxidHasher
-{
-private:
-    /** Salt */
-    const uint64_t k0, k1;
-
-public:
-    SaltedTxidHasher();
-
-    /**
-     * This *must* return size_t. With Boost 1.46 on 32-bit systems the
-     * unordered_map will behave unpredictably if the custom hasher returns a
-     * uint64_t, resulting in failures when syncing the chain (#4634).
-     */
-    size_t operator()(const uint256& txid) const {
-        return SipHashUint256(k0, k1, txid);
     }
 };
 
