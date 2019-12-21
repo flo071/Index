@@ -17,7 +17,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
-#include <pubkey.h>
+#include "pubkey.h"
 
 // Maximum number of bytes pushable to the stack
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
@@ -489,6 +489,11 @@ public:
         return *this;
     }
 
+    CScript& operator<<(const CPubKey& key)
+    {
+        std::vector<unsigned char> vchKey = key.Raw();
+        return (*this) << vchKey;
+    }
 
     bool GetOp(iterator& pc, opcodetype& opcodeRet, std::vector<unsigned char>& vchRet)
     {

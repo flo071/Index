@@ -747,6 +747,9 @@ public:
     int64_t nOrderPosNext;
     std::map<uint256, int> mapRequestCount;
 
+    //Stake settings
+    uint64_t nStakeSplitThreshold = 2000;
+
     std::map<CTxDestination, CAddressBookData> mapAddressBook;
 
     CPubKey vchDefaultKey;

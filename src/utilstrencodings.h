@@ -29,6 +29,9 @@ enum SafeChars
     SAFE_CHARS_UA_COMMENT //!< BIP-0014 subset
 };
 
+/** This is needed because the foreach macro can't get over the comma in pair<t1, t2> */
+#define PAIRTYPE(t1, t2) std::pair<t1, t2>
+
 /**
 * Remove unsafe chars. Safe chars chosen to allow simple messages/URLs/email
 * addresses, but avoid anything even possibly remotely dangerous like & or >
