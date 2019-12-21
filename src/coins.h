@@ -77,6 +77,9 @@ public:
     //! whether transaction is a coinbase
     bool fCoinBase;
 
+    //! whether containing transaction was a coinstake
+    unsigned int fCoinStake : 1;
+
     //! unspent transaction outputs; spent outputs are .IsNull(); spent outputs at the end of the array are dropped
     std::vector<CTxOut> vout;
 
@@ -89,26 +92,32 @@ public:
 
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
+        fCoinBase = tx.IsCoinStake();
         vout = tx.vout;
         nHeight = nHeightIn;
         nVersion = tx.nVersion;
         ClearUnspendable();
     }
 
-    //! construct a CCoins from a CTransaction, at a given height
-    CCoins(const CTransaction &tx, int nHeightIn) {
-        FromTx(tx, nHeightIn);
-    }
+    //! construct a Coin from a CTxOut and height/coinbase information.
+    Coin(const CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out(std::move(outIn)),
+        fCoinBase(fCoinBaseIn),
+        fCoinStake(fCoinStakeIn),
+        nHeight(nHeightIn)
+    { }
 
     void Clear() {
         fCoinBase = false;
+        fCoinStake = false;
         std::vector<CTxOut>().swap(vout);
         nHeight = 0;
         nVersion = 0;
     }
 
     //! empty constructor
-    CCoins() : fCoinBase(false), vout(0), nHeight(0), nVersion(0) { }
+    Coin() : fCoinBase(false), fCoinStake(false), nHeight(0) { }
+
 
     //!remove spent outputs at the end of vout
     void Cleanup() {
@@ -151,6 +160,10 @@ public:
 
     bool IsCoinBase() const {
         return fCoinBase;
+    }
+
+    bool IsCoinStake() const {
+        return fCoinStake;
     }
 
     unsigned int GetSerializeSize(int nType, int nVersion) const {
