@@ -59,6 +59,8 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint64_t nLastBlockWeight = 0;
+const char *DEFAULT_WALLET_DAT = "wallet.dat";
+int64_t nLastCoinStakeSearchInterval = 0;
 
 class ScoreCompare
 {
@@ -134,13 +136,15 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-CBlockTemplate* BlockAssembler::CreateNewBlock(CWallet *wallet,
+CBlockTemplate* BlockAssembler::CreateNewBlock(
     const CScript& scriptPubKeyIn,
      bool fProofOfStake,
     const vector<uint256>& tx_ids)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
+    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    CWallet *wallet = new CWallet(walletFile);
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
@@ -470,7 +474,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(CWallet *wallet,
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
-    if(fProofOfStake && !sporkManager.IsSporkActive(Spork::SPORK_15_POS_DISABLED))
+            std::vector<const CWalletTx*> vwtxPrev;
+
+    if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED))
     {
         assert(wallet);
         boost::this_thread::interruption_point();
@@ -538,7 +544,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlockWithKey(CReserveKey &reservekey) {
 
     CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
 //    CScript scriptPubKey = GetScriptForDestination(pubkey.GetID());;
-    return CreateNewBlock(scriptPubKey, {});
+    return CreateNewBlock(scriptPubKey, false,{});
 }
 
 bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
@@ -1111,7 +1117,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             }
             LogPrintf("BEFORE: pblocktemplate\n");
             auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
-                coinbaseScript->reserveScript, {}));
+                coinbaseScript->reserveScript,false,{}));
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
