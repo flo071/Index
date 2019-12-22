@@ -4186,7 +4186,7 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
             // if (out.tx->vin[0].IsZerocoinSpend() && !out.tx->IsInMainChain())
             //     continue;
 
-            // CBlockIndex* utxoBlock = mapBlockIndex.at(out.tx->hashBlock);
+            CBlockIndex* utxoBlock = mapBlockIndex.at(out.tx->hashBlock);
             // //check for maturity (min age/depth)
             // if (GetTime() - out.tx->GetTxTime() < Params().GetConsensus().nStakeMinAge)
             //     continue;
@@ -4262,6 +4262,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
     // The following split & combine thresholds are important to security
     // Should not be adjusted if you don't understand the consequences
     //int64_t nCombineThreshold = 0;
+    const CBlockIndex* pindexPrev = chainActive.Tip();
     txNew.vin.clear();
     txNew.vout.clear();
 
@@ -4275,6 +4276,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
 
     // presstab HyperStake - Initialize as static and don't update the set on every run of CreateCoinStake() in order to lighten resource use
     static StakeCoinsSet setStakeCoins;
+    using StakeCoinsSet = std::set<std::pair<const CWalletTx*, unsigned int>>;
     static int nLastStakeSetUpdate = 0;
 
     if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime) {
