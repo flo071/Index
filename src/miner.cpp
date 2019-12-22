@@ -1134,12 +1134,14 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //Sign block
-            if (fProofOfStake)
-            {
+            //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
+            if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
+               pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
+               {
                 LogPrintf("CPUMiner : proof-of-stake block found %s \n", pblock->GetHash().ToString().c_str());
 
                 if (!SignBlock(*pblock, *pwallet)) {
-                    LogPrintf("VESTXMiner(): Signing new block failed \n");
+                    LogPrintf("ZCoinMiner(): Signing new block failed \n");
                     throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
                 }
 
