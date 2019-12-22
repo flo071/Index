@@ -4300,7 +4300,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
         //iterates each utxo inside of CheckStakeKernelHash()
         CScript kernelScript;
         auto stakeScript = pcoin.first->vout[pcoin.second].scriptPubKey;
-        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,block, sizeof(CBlock), pcoin.first->tx,prevoutStake, nTxNewTime, false);
+        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,block, sizeof(CBlock), *pcoin.first,prevoutStake, nTxNewTime, false);
         if(fKernelFound)
         {
             FillCoinStakePayments(txNew, kernelScript, prevoutStake, blockReward);
