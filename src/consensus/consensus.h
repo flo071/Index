@@ -14,7 +14,7 @@
 static const int HF_LYRA2VAR_HEIGHT = 500;
 static const int HF_LYRA2_HEIGHT = 8192;
 static const int HF_LYRA2Z_HEIGHT = 20500;
-static const int HF_ZNODE_HEIGHT = 200;
+static const int HF_ZNODE_HEIGHT = 150;
 static const int HF_ZNODE_PAYMENT_START = HF_ZNODE_HEIGHT; // 66700 - about 25h after HF
 static const int HF_MTP_HEIGHT = 88888;
 

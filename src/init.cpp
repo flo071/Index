@@ -2173,9 +2173,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
     }
     //Start staking thread
-    if(GetBoolArg("-staking", true)){
-                threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
-    }
+    // if(GetBoolArg("-staking", true)){
+    // threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
+    // }
 #endif
 
     return !fRequestShutdown;

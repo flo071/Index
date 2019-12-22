@@ -1113,11 +1113,18 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
             //
             // Create new block
             //
+
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
             if (pindexPrev) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
+            if(fProofOfStake && !(!sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
+               pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock))
+               {
+                   LogPrintf("ZCoinminer,Proofofstake thread called before proof of stake phase");
+                   return;
+               }
             LogPrintf("BEFORE: pblocktemplate\n");
             unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
                 coinbaseScript->reserveScript,fProofOfStake,{}));
@@ -1146,6 +1153,7 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
 
                 LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
             }
+       
                 // check if block is valid
             CValidationState state;
             if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {

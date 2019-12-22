@@ -98,7 +98,7 @@ public:
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
         consensus.nPowTargetSpacing = 1 * 60; // 1 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.fPowNoRetargeting = false;
+        consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 10260; // 95% of 10800
         consensus.nMinerConfirmationWindow = 10800; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -158,11 +158,11 @@ public:
         consensus.nDisableZerocoinStartBlock = 2;
 
         //START POW/POS hybrid params
-        consensus.nStakeMinAge = 60 * 60;
+        consensus.nStakeMinAge = 1;
         consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.nPosTargetSpacing = consensus.nPowTargetSpacing;
         consensus.nPosTargetTimespan = consensus.nPowTargetTimespan;
-        consensus.nFirstPoSBlock = consensus.nZnodePaymentsStartBlock; //From this block proof of stake blocks start and are accepted
+        consensus.nFirstPoSBlock = 80 ; //From this block proof of stake blocks start and are accepted
         consensus.nModifierInterval = 60 * 20;
         //End POW/POS  hybrid params
 
@@ -207,11 +207,11 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("0x000006ca60c7df6d2ebbcd0865497d1bd43816d61bb4eac5399a0c59e6dd20a5"));
         assert(genesis.hashMerkleRoot     == uint256S("b6f05125e30ba39aac82cd89a07afe985ecf1fbbceeb2abde4e6e78da22a9b22"));
         //Initial seeders for use
-        vSeeds.push_back(CDNSSeedData("45.76.196.198", "45.76.196.198", false));
-        vSeeds.push_back(CDNSSeedData("198.13.41.221", "198.13.41.221", false));
-        vSeeds.push_back(CDNSSeedData("202.182.101.157", "202.182.101.157", false));
-        vSeeds.push_back(CDNSSeedData("207.148.96.237", "207.148.96.237", false));
-        vSeeds.push_back(CDNSSeedData("202.182.107.84", "202.182.107.84", false));
+        // vSeeds.push_back(CDNSSeedData("45.76.196.198", "45.76.196.198", false));
+        // vSeeds.push_back(CDNSSeedData("198.13.41.221", "198.13.41.221", false));
+        // vSeeds.push_back(CDNSSeedData("202.182.101.157", "202.182.101.157", false));
+        // vSeeds.push_back(CDNSSeedData("207.148.96.237", "207.148.96.237", false));
+        // vSeeds.push_back(CDNSSeedData("202.182.107.84", "202.182.107.84", false));
 
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
