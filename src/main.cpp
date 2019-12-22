@@ -4964,12 +4964,18 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
         return error("%s: %s", __func__, FormatStateMessage(state));
     }
     int nHeight = pindex->nHeight;
+        // Get prev block index
+    CBlockIndex* pindexPrev = nullptr;
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi == mapBlockIndex.end())
+        return state.DoS(10, error("%s: prev block not found", __func__), 0, "prev-blk-not-found");
+    pindexPrev = (*mi).second;
 //    LogPrintf("AcceptBlock() pindex->nHeight=%s\n", nHeight);
     AcceptProofOfStakeBlock(block, pindex);
     if (block.IsProofOfStake()) {
         LOCK(cs_main);
 
-        CCoinsViewCache coins(pcoinsTip->get());
+        CCoinsViewCache coins(pcoinsTip);
 
         const CTransaction& tx = block.vtx[1];
         if (!coins.HaveInputs(tx)) {
@@ -4997,12 +5003,12 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
                 ReadBlockFromDisk(bl, last, Params().GetConsensus());
                 // loop through every spent input from said block
 
-                for (CTransactionRef tRef : bl.vtx) {
-                    const CTransaction& t = *tRef;
+                for (CTransaction tRef : bl.vtx) {
+                    const CTransaction& t = tRef;
                     for (CTxIn in : t.vin) {
                         // loop through every spent input in the staking transaction of the new block
 
-                        const CTransaction& tx = *block.vtx[1];
+                        const CTransaction& tx = block.vtx[1];
                         for (CTxIn stakeIn : tx.vin) {
 
                             // if they spent the same input
