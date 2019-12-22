@@ -4133,11 +4133,11 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
             continue;
 
         // for staking we support P2PKH, Native Segwit, P2SH Segwit
-        if(!boost::get<CKeyID>(&dest) && !boost::get<WitnessV0KeyHash>(&dest) &&
-                !boost::get<CScriptID>(&dest))
+        if(!boost::get<CKeyID&>(&dest) && !boost::get<WitnessV0KeyHash&>(&dest) &&
+                !boost::get<CScriptID&>(&dest))
             continue;
 
-        if(!fSelectWitness && !boost::get<CKeyID>(&dest))
+        if(!fSelectWitness && !boost::get<CKeyID&>(&dest))
             continue;
 
         //        LogPrintf("scriptPubKeyKernel is good\n");
@@ -4300,7 +4300,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
         //iterates each utxo inside of CheckStakeKernelHash()
         CScript kernelScript;
         auto stakeScript = pcoin.first->vout[pcoin.second].scriptPubKey;
-        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,block, sizeof(CBlock), pcoin.first,prevoutStake, nTxNewTime, false);
+        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,block, sizeof(CBlock), pcoin.first->tx,prevoutStake, nTxNewTime, false);
         if(fKernelFound)
         {
             FillCoinStakePayments(txNew, kernelScript, prevoutStake, blockReward);

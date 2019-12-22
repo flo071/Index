@@ -303,6 +303,7 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
+    const CWalletTx *tx;
     // memory only
     mutable bool fDebitCached;
     mutable bool fCreditCached;
