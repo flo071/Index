@@ -4133,9 +4133,9 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
             continue;
 
         // for staking we support P2PKH, Native Segwit, P2SH Segwit
-        if(!boost::get<CKeyID&>(&dest) && !boost::get<WitnessV0KeyHash&>(&dest) &&
-                !boost::get<CScriptID&>(&dest))
-            continue;
+        //if(!boost::get<CKeyID&>(&dest) && !boost::get<WitnessV0KeyHash&>(&dest) &&
+           //     !boost::get<CScriptID&>(&dest))
+            //continue;
 
         if(!fSelectWitness && !boost::get<CKeyID&>(&dest))
             continue;
