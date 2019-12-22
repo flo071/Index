@@ -1136,7 +1136,7 @@ public:
     int GetBestHeight() const;
 
     /** Get a unique deterministic randomizer. */
-    CSipHasher GetDeterministicRandomizer(uint64_t id) const;
+    //CSipHasher GetDeterministicRandomizer(uint64_t id) const;
 
     unsigned int GetReceiveFloodSize() const;
 
