@@ -29,6 +29,10 @@
 
 #include <univalue.h>
 
+
+extern int64_t nLastCoinStakeSearchInterval;
+
+
 using namespace std;
 
 /**
@@ -323,7 +327,7 @@ UniValue znsync(const UniValue& params, bool fHelp)
 
 UniValue getstakingstatus(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp)
+    if (fHelp || params.size() != 0)
         throw std::runtime_error(
             "getstakingstatus\n"
             "Returns an object containing various staking information.\n"
@@ -341,7 +345,7 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
             HelpExampleCli("getstakingstatus", "") + HelpExampleRpc("getstakingstatus", ""));
 
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("validtime", chainActive.Tip()->nHeight + 1 >=chainparams.GetConsensus().nFirstPoSBlock));
+    obj.push_back(Pair("validtime", chainActive.Tip()->nHeight + 1 >= Params().GetConsensus().nFirstPoSBlock));
     obj.push_back(Pair("haveconnections", g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) > 0));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
