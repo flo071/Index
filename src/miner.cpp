@@ -59,7 +59,6 @@ using namespace std;
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint64_t nLastBlockWeight = 0;
-const char *DEFAULT_WALLET_DAT = "wallet.dat";
 int64_t nLastCoinStakeSearchInterval = 0;
 
 class ScoreCompare
