@@ -263,7 +263,7 @@ uint256 stakeHash(unsigned int nTimeTx, CDataStream ss, unsigned int prevoutInde
     return Hash(ss.begin(), ss.end());
 }
 
-bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransactionRef& txPrev, const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake, bool fMinting, bool fValidate)
+bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransaction& txPrev, const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake, bool fMinting, bool fValidate)
 {
     auto txPrevTime = blockFrom.GetBlockTime();
     if (nTimeTx < txPrevTime)  // Transaction timestamp violation
@@ -277,7 +277,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
 
     arith_uint256 bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
-    CAmount nValueIn = txPrev->vout[prevout.n].nValue;
+    CAmount nValueIn = txPrev.vout[prevout.n].nValue;
     // v0.3 protocol kernel hash weight starts from 0 at the 30-day min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
@@ -332,24 +332,22 @@ bool CheckKernelScript(CScript scriptVin, CScript scriptVout)
 // Check kernel hash target and coinstake signature
 bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
 {
-    const CTransactionRef &tx = MakeTransactionRef(block.vtx[1]);
-    if (!tx->IsCoinStake())
-        return error("CheckProofOfStake() : called on non-coinstake %s", tx->GetHash().ToString().c_str());
+    const CTransaction tx = block.vtx[1];
+    if (!tx.IsCoinStake())
+        return error("CheckProofOfStake() : called on non-coinstake %s", tx.GetHash().ToString().c_str());
 
     // Kernel (input 0) must match the stake hash target per coin age (nBits)
-    const CTxIn& txin = tx->vin[0];
+    const CTxIn& txin = tx.vin[0];
 
     // First try finding the previous transaction in database
     uint256 hashBlock;
-    CTransactionRef txPrev;
     CTransaction txPrevLegacy;
 
     const auto &cons = Params().GetConsensus();
 
     if (!GetTransaction(txin.prevout.hash, txPrevLegacy, cons, hashBlock, true))
         return error("CheckProofOfStake() : INFO: read txPrev failed");
-    // txPrev = MakeTransactionRef(txPrevLegacy);
-    CTxOut prevTxOut = txPrev->vout[txin.prevout.n];
+    CTxOut prevTxOut = txPrevLegacy.vout[txin.prevout.n];
     CBlockIndex* pindex = NULL;
     BlockMap::iterator it = mapBlockIndex.find(hashBlock);
     if (it != mapBlockIndex.end())
@@ -362,12 +360,12 @@ bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
     if (!ReadBlockFromDisk(blockprev, pindex->GetBlockPos(), cons))
         return error("CheckProofOfStake(): INFO: failed to find block");
 
-    if(!CheckKernelScript(prevTxOut.scriptPubKey, tx->vout[1].scriptPubKey))
-        return error("CheckProofOfStake() : INFO: check kernel script failed on coinstake %s, hashProof=%s \n", tx->GetHash().ToString().c_str(), hashProofOfStake.ToString().c_str());
+    if(!CheckKernelScript(prevTxOut.scriptPubKey, tx.vout[1].scriptPubKey))
+        return error("CheckProofOfStake() : INFO: check kernel script failed on coinstake %s, hashProof=%s \n", tx.GetHash().ToString().c_str(), hashProofOfStake.ToString().c_str());
 
     unsigned int nTime = block.nTime;
-    if (!CheckStakeKernelHash(block.nBits, blockprev, sizeof(CBlock), txPrev, txin.prevout, nTime, hashProofOfStake, false, true))
-        return error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s, hashProof=%s \n", tx->GetHash().ToString().c_str(), hashProofOfStake.ToString().c_str()); // may occur during initial download or if behind on block chain sync
+    if (!CheckStakeKernelHash(block.nBits, blockprev, sizeof(CBlock), txPrevLegacy, txin.prevout, nTime, hashProofOfStake, false, true))
+        return error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s, hashProof=%s \n", tx.GetHash().ToString().c_str(), hashProofOfStake.ToString().c_str()); // may occur during initial download or if behind on block chain sync
 
     return true;
 }

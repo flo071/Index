@@ -913,3 +913,15 @@ void CZnodePayments::UpdatedBlockTip(const CBlockIndex *pindex) {
     
     ProcessBlock(pindex->nHeight + 5);
 }
+void AdjustMasternodePayment(CMutableTransaction &tx, const CTxOut &txoutMasternodePayment)
+{
+    auto it = std::find(std::begin(tx.vout), std::end(tx.vout), txoutMasternodePayment);
+
+    if(it != std::end(tx.vout))
+    {
+        long mnPaymentOutIndex = std::distance(std::begin(tx.vout), it);
+        auto masternodePayment = tx.vout[mnPaymentOutIndex].nValue;
+        long i = tx.vout.size() - 2;
+        tx.vout[i].nValue -= masternodePayment; // last vout is mn payment.
+    }
+}

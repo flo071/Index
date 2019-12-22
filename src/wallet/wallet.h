@@ -656,6 +656,11 @@ private:
     int64_t nLastResend;
     bool fBroadcastTransactions;
 
+    // Stake Settings
+    unsigned int nHashDrift = 45;
+    unsigned int nHashInterval = 22;
+    int nStakeSetUpdateTime = 300; // 5 mins
+
     mutable bool fAnonymizableTallyCached;
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;
     mutable bool fAnonymizableTallyCachedNonDenom;
@@ -745,6 +750,7 @@ public:
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64_t, TxPair > TxItems;
     TxItems wtxOrdered;
+    uint64_t nStakeSplitThreshold = 2000;
 
     int64_t nOrderPosNext;
     std::map<uint256, int> mapRequestCount;
@@ -778,6 +784,11 @@ public:
     bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
     bool SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax);
     bool GetCollateralTxIn(CTxIn& txinRet, CAmount& nValueRet) const;
+    ///Start pos funcs
+    using StakeCoinsSet = std::set<std::pair<const CWalletTx*, unsigned int>>;
+    bool MintableCoins();
+    bool SelectStakeCoins(StakeCoinsSet& setCoins, CAmount nTargetAmount, bool fSelectWitness, const CScript &scriptFilterPubKey = CScript()) const;
+
     bool SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const;
     bool SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated = true, bool fAnonymizable = true) const;
 
@@ -1233,10 +1244,10 @@ public:
 
     /* Set the current HD master key (will reset the chain child index counters) */
     bool SetHDMasterKey(const CPubKey& key, const int cHDChainVersion=CHDChain().CURRENT_VERSION);
-    bool CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript,
-                               unsigned int nBits, const CBlock& blockFrom,
-                               unsigned int nTxPrevOffset, const CTransactionRef &txPrev,
-                               const COutPoint& prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const;
+bool CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript,
+                                    unsigned int nBits, const CBlock &blockFrom,
+                                    unsigned int nTxPrevOffset, const CTransaction& txPrev,
+                                    const COutPoint &prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const;
     void FillCoinStakePayments(CMutableTransaction &transaction,
                                const CScript &kernelScript,
                                const COutPoint &stakePrevout, CAmount blockReward) const;

@@ -492,7 +492,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             {
                 pblock->nTime = nTxNewTime;
                 coinbaseTx.vout[0].SetEmpty();
-                pblock->vtx.emplace_back(MakeTransactionRef(coinstakeTx));
+                pblock->vtx.push_back(CTransaction(coinstakeTx));
 
                 fStakeFound = true;
             }

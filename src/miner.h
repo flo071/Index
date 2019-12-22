@@ -172,7 +172,6 @@ public:
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, bool fProofOfStake, const vector<uint256>& tx_ids);
     CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
-
 private:
     // utility functions
     /** Clear the block's state and prepare for assembling a new block */
@@ -217,5 +216,6 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 /** Run the miner threads */
 void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+    void ThreadStakeMinter(const CChainParams &chainparams);
 
 #endif // BITCOIN_MINER_H

@@ -51,7 +51,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
-
+#include "znode-payments.h"
+#include "kernel.h"
 #ifdef ENABLE_CLIENTAPI
 #include "client-api/server.h"
 #endif
@@ -4083,9 +4084,103 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
     }
     return true;
 }
+bool CWallet::MintableCoins()
+{
+    //    CAmount nBalance = GetBalance();
+    //    if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
+    //        return error("MintableCoins() : invalid reserve balance amount");
+    //    if (nBalance <= nReserveBalance)
+    //        return false;
+
+    std::vector<COutput> vCoins;
+    LOCK2(cs_main, cs_wallet);
+    AvailableCoins(vCoins, true);
+
+    for (const COutput& out : vCoins)
+    {
+        if (GetTime() - out.tx->GetTxTime() > Params().GetConsensus().nStakeMinAge)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, bool fSelectWitness, const CScript &scriptFilterPubKey) const
+{
+    std::vector<COutput> vCoins;
+    CCoinControl coinControl;
+    coinControl.fAllowWatchOnly = !scriptFilterPubKey.empty();
+    {
+        LOCK2(cs_main, cs_wallet);
+        AvailableCoins(vCoins, !scriptFilterPubKey.empty(), &coinControl);
+    }
+    CAmount nAmountSelected = 0;
+
+    std::set<CScript> rejectCache;
+
+    for (const COutput& out : vCoins) {
+        //make sure not to outrun target amount
+        CScript scriptPubKeyKernel;
+        scriptPubKeyKernel = out.tx->vout[out.i].scriptPubKey;
+
+        if(!coinControl.fAllowWatchOnly && !out.fSpendable)
+            continue;
+
+        CTxDestination dest;
+        if(!ExtractDestination(scriptPubKeyKernel, dest))
+            continue;
+
+        // for staking we support P2PKH, Native Segwit, P2SH Segwit
+        if(!boost::get<CKeyID>(&dest) && !boost::get<WitnessV0KeyHash>(&dest) &&
+                !boost::get<CScriptID>(&dest))
+            continue;
+
+        if(!fSelectWitness && !boost::get<CKeyID>(&dest))
+            continue;
+
+        //        LogPrintf("scriptPubKeyKernel is good\n");
+
+        //for now we will comment this out
+        //        if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
+        //            continue;
+
+        //        LogPrintf("amount is good\n");
+
+        //check for min age
+        if (GetTime() - out.tx->GetTxTime() < Params().GetConsensus().nStakeMinAge)
+            continue;
+
+        //        LogPrintf("min age is good\n");
+
+        //check that it is matured
+        if (out.nDepth < (out.tx->IsCoinStake() ? COINBASE_MATURITY : 10))
+            continue;
+
+        //        LogPrintf("maturity is good\n");
+
+        auto scriptPubKeyCoin = out.tx->vout[out.i].scriptPubKey;
+
+        if(!scriptFilterPubKey.empty() && scriptPubKeyCoin != scriptFilterPubKey)
+            continue;
+
+        //        LogPrintf("filtering is good\n");
+
+        if(rejectCache.count(scriptPubKeyCoin)) {
+            continue;
+        }
+
+        //        LogPrintf("reject is good\n");
+
+        nAmountSelected += out.tx->vout[out.i].nValue;
+        setCoins.emplace(out.tx, out.i);
+    }
+    return true;
+}
 bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript,
                                     unsigned int nBits, const CBlock &blockFrom,
-                                    unsigned int nTxPrevOffset, const CTransactionRef &txPrev,
+                                    unsigned int nTxPrevOffset, const CTransaction& txPrev,
                                     const COutPoint &prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const
 {
     unsigned int nTryTime = 0;
@@ -4120,10 +4215,9 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
                                     CAmount blockReward) const
 {
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
-    CTxOut prevTxOut = walletTx->tx->vout[stakePrevout.n];
+    CTxOut prevTxOut = walletTx->vout[stakePrevout.n];
     auto nCredit = prevTxOut.nValue;
-    unsigned int percentage = 100;
-    auto nCoinStakeReward = nCredit + GetStakeReward(blockReward, percentage);
+    auto nCoinStakeReward = nCredit + blockReward;
     transaction.vin.emplace_back(CTxIn(stakePrevout));
     //presstab HyperStake - calculate the total size of our new output including the stake reward so that we can use it to decide whether to split the stake outputs
     // adding output which will pay to coin stake
@@ -4200,15 +4294,13 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
             continue;
         }
         // Read block header
-        CBlockHeader block = pindex->GetBlockHeader();
+        CBlock block = pindex->GetBlockHeader();
         COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
         nTxNewTime = GetAdjustedTime();
         //iterates each utxo inside of CheckStakeKernelHash()
         CScript kernelScript;
-        auto stakeScript = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
-        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,
-                                             block, sizeof(CBlock), pcoin.first->tx,
-                                             prevoutStake, nTxNewTime, false);
+        auto stakeScript = pcoin.first->vout[pcoin.second].scriptPubKey;
+        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,block, sizeof(CBlock), pcoin.first,prevoutStake, nTxNewTime, false);
         if(fKernelFound)
         {
             FillCoinStakePayments(txNew, kernelScript, prevoutStake, blockReward);

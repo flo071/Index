@@ -117,6 +117,9 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
+/* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
+// CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nLockTime(tx.nLockTime), hash{UpdateHash()}, m_witness_hash{UpdateHash()} {}
+CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion), nLockTime(tx.nLockTime) { }
 void CTransaction::UpdateHash() const
 {
     *const_cast<uint256*>(&hash) = SerializeHash(*this, SER_GETHASH, SERIALIZE_TRANSACTION_NO_WITNESS);
