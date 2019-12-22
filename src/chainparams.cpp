@@ -162,7 +162,7 @@ public:
         consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.nPosTargetSpacing = consensus.nPowTargetSpacing;
         consensus.nPosTargetTimespan = consensus.nPowTargetTimespan;
-        consensus.nFirstPoSBlock = 180; //From this block proof of stake blocks start and are accepted
+        consensus.nFirstPoSBlock = consensus.nZnodePaymentsStartBlock; //From this block proof of stake blocks start and are accepted
         consensus.nModifierInterval = 60 * 20;
         //End POW/POS  hybrid params
 

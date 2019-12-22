@@ -475,8 +475,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
             std::vector<const CWalletTx*> vwtxPrev;
-
-    if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED))
+    //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
+    if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
+       pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
     {
         assert(wallet);
         boost::this_thread::interruption_point();
@@ -512,7 +513,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+        if (!fProofOfStake)
+            UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
         pblock->nNonce         = 0;
 
