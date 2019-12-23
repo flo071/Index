@@ -376,6 +376,11 @@ bool CWallet::AddWatchOnly(const CScript &dest) {
     return CWalletDB(strWalletFile).WriteWatchOnly(dest);
 }
 
+CAmount GetStakeReward(CAmount blockReward, unsigned int percentage)
+{
+    return (blockReward / 100) * percentage;
+}
+
 bool CWallet::RemoveWatchOnly(const CScript &dest) {
     AssertLockHeld(cs_wallet);
     if (!CCryptoKeyStore::RemoveWatchOnly(dest))
@@ -4347,10 +4352,7 @@ bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeS
     }
     return false;
 }
-CAmount GetStakeReward(CAmount blockReward, unsigned int percentage)
-{
-    return (blockReward / 100) * percentage;
-}
+
 void CWallet::FillCoinStakePayments(CTransaction &transaction,
                                     const CScript &scriptPubKeyOut,
                                     const COutPoint &stakePrevout,
@@ -4358,7 +4360,7 @@ void CWallet::FillCoinStakePayments(CTransaction &transaction,
 {   LogPrintf("Getting wallettx");
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
     LogPrintf("Getting prevTxOut");
-    CTxOut prevTxOut = walletTx->vout[stakePrevout.n];
+    CTxOut prevTxOut = walletTx->tx->vout[stakePrevout.n];
     auto nCredit = prevTxOut.nValue;
     unsigned int percentage = 100;
 
@@ -4406,10 +4408,11 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore,
     CAmount nBalance = GetBalance();
 
     // presstab HyperStake - Initialize as static and don't update the set on every run of CreateCoinStake() in order to lighten resource use
-    static StakeCoinsSet setStakeCoins;
+    std::set<std::pair<const CWalletTx*,unsigned int> > setStakeCoins;
+    //static StakeCoinsSet setStakeCoins;
     static int nLastStakeSetUpdate = 0;
 
-    if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime) {
+    if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime && nBalance < 100 * COIN) {
         setStakeCoins.clear();
 
         CScript scriptPubKey;

@@ -302,6 +302,7 @@ public:
     std::string strFromAccount;
     int64_t nOrderPos; //!< position in ordered transaction list
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
+    const CWalletTx *tx;
 
     // memory only
     mutable bool fDebitCached;
@@ -659,7 +660,7 @@ private:
     // Stake Settings
     unsigned int nHashDrift = 45;
     unsigned int nHashInterval = 22;
-    int nStakeSetUpdateTime = 300; // 5 mins
+    int nStakeSetUpdateTime = 100; // 5 mins
 
     mutable bool fAnonymizableTallyCached;
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;
