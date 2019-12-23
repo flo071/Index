@@ -4353,26 +4353,20 @@ bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeS
     return false;
 }
 
-void CWallet::FillCoinStakePayments(CTransaction &transaction,
+void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
                                     const CScript &scriptPubKeyOut,
                                     const COutPoint &stakePrevout,
                                     CAmount blockReward) const
-{   LogPrintf("Getting wallettx");
+{
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
-    LogPrintf("Getting prevTxOut");
     CTxOut prevTxOut = walletTx->tx->vout[stakePrevout.n];
     auto nCredit = prevTxOut.nValue;
     unsigned int percentage = 100;
 
     auto nCoinStakeReward = nCredit + GetStakeReward(blockReward, percentage);
-        LogPrintf("Getting nCoinStakeReward");
-    LogPrintf("starting tx vin stuff");
-
     transaction.vin.emplace_back(CTxIn(stakePrevout));
     //presstab HyperStake - calculate the total size of our new output including the stake reward so that we can use it to decide whether to split the stake outputs
     // adding output which will pay to coin stake
-        LogPrintf("calculating toal size");
-
     transaction.vout.emplace_back(nCoinStakeReward, scriptPubKeyOut);
     {
         CTxOut &lastTx = transaction.vout.back();
@@ -4387,7 +4381,7 @@ void CWallet::FillCoinStakePayments(CTransaction &transaction,
 bool CWallet::CreateCoinStake(const CKeyStore& keystore,
                               unsigned int nBits,
                               CAmount blockReward,
-                              CTransaction &txNew,
+                              CMutableTransaction &txNew,
                               unsigned int &nTxNewTime,
                               std::vector<const CWalletTx*> &vwtxPrev,
                               bool fGenerateSegwit)

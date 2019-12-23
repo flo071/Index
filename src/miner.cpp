@@ -481,7 +481,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         assert(wallet);
         boost::this_thread::interruption_point();
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
-        CTransaction coinstakeTx;
+        CMutableTransaction coinstakeTx;
         int64_t nSearchTime = pblock->nTime; // search to current time
         bool fStakeFound = false;
         if (nSearchTime >= nLastCoinStakeSearchTime) {
