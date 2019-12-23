@@ -481,7 +481,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         assert(wallet);
         boost::this_thread::interruption_point();
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
-        CMutableTransaction coinstakeTx;
+        CTransaction coinstakeTx;
         int64_t nSearchTime = pblock->nTime; // search to current time
         bool fStakeFound = false;
         if (nSearchTime >= nLastCoinStakeSearchTime) {
@@ -496,7 +496,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
                 fStakeFound = true;
             }
-
+            LogPrintf("updating stakesearchinterval\n");
             nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
             nLastCoinStakeSearchTime = nSearchTime;
         }
@@ -504,11 +504,15 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         if (!fStakeFound)
             return nullptr;
     }
+                LogPrintf("computing coinbase tx\n");
+
         // Compute final coinbase transaction.
-        coinbaseTx.vout[0].nValue += blockReward;
+        if(pindexPrev->nHeight + 1 < chainparams.GetConsensus().nFirstPoSBlock)
+           coinbaseTx.vout[0].nValue += blockReward;
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
         pblock->vtx[0] = coinbaseTx;
         pblocktemplate->vTxFees[0] = -nFees;
+                LogPrintf("filling header\n");
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -523,16 +527,16 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
-        //LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
+        LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
 
         CValidationState state;
-        //LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
+        LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
             throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
-        //LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
+        LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
-    //LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
+    LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
     return pblocktemplate.release();
 }
 
@@ -1130,7 +1134,10 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
                 coinbaseScript->reserveScript,fProofOfStake,{}));
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
+                if(!fProofOfStake)
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                else
+                LogPrintf("Error in ZcoinMiner: No Inputs to stake\n");
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;

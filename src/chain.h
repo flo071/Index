@@ -377,12 +377,12 @@ public:
         block.nNonce         = nNonce;
 
         // Index - MTP
-        if(block.IsMTP()){
-			block.nVersionMTP = nVersionMTP;
-            block.mtpHashValue = mtpHashValue;
-            block.reserved[0] = reserved[0];
-            block.reserved[1] = reserved[1];
-		}
+        // if(block.IsMTP()){
+		// 	block.nVersionMTP = nVersionMTP;
+        //     block.mtpHashValue = mtpHashValue;
+        //     block.reserved[0] = reserved[0];
+        //     block.reserved[1] = reserved[1];
+		// }
         return block;
     }
 
