@@ -1146,8 +1146,8 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
-            //Sign block
-            //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
+            // //Sign block
+            // //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
             if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
                pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
                {
@@ -1157,14 +1157,22 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
                     LogPrintf("ZCoinMiner(): Signing new block failed \n");
                     throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
                 }
-
                 LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
             }
        
-                // check if block is valid
-            CValidationState state;
-            if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-                throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+            //     // check if block is valid
+            // CValidationState state;
+            
+            // if ( fProofOfStake && !TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+            //     throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+            // }
+                        // process proof of stake block
+            if(fProofOfStake) {
+                SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                ProcessBlockFound(pblock, chainparams);
+                SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                MilliSleep(10000);
+                continue;
             }
             LogPrintf("BEFORE: search\n");
             //

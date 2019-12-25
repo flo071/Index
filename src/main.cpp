@@ -78,7 +78,7 @@
 #include <boost/thread.hpp>
 #include "kernel.h"
 #include <iostream> // delete me
-
+#include "blocksigner.h"
 using namespace std;
 
 #if defined(NDEBUG)
@@ -1296,6 +1296,10 @@ bool AcceptToMemoryPoolWorker(
         LogPrintf("cause by -> coinbase!\n");
         return state.DoS(100, false, REJECT_INVALID, "coinbase");
     }
+    //Coinstake is also only valid in a block, not as a loose transaction
+    if (tx.IsCoinStake())
+        return state.DoS(100, error("AcceptToMemoryPoolWorker: coinstake as individual tx"),
+                         REJECT_INVALID, "coinstake");
 
     // Don't relay version 2 transactions until CSV is active, and we can be
     // sure that such transactions will be mined (unless we're on
@@ -2063,14 +2067,19 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     }
 
    
-
-    // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)){
+    if(block.IsProofOfWork()){
+            if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)){
         //Maybe cache is not valid
         if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)){
             return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
         }
     }
+    }
+    // Check the header proof of stake
+    else {
+        // CheckStakeKernelHash()
+    }
+
     return true;
 }
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
@@ -2417,19 +2426,34 @@ namespace Consensus {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
 
         }
-
-        if (nValueIn < tx.GetValueOut())
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
+        if(!tx.IsCoinStake())
+           if (nValueIn < tx.GetValueOut())
+               return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
                              strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn),
                                        FormatMoney(tx.GetValueOut())));
 
         // Tally transaction fees
         CAmount nTxFee = nValueIn - tx.GetValueOut();
-        if (nTxFee < 0)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-negative");
+        const CAmount value_out = tx.GetValueOut();
+
+        //Proof of stake doesnt pay any tx fees
+        if(!tx.IsCoinStake())
+           if (nTxFee < 0)
+               return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-negative");
         nFees += nTxFee;
-        if (!MoneyRange(nFees))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+        const CAmount txfee_aux = value_out - nValueIn;
+        LogPrintf("valin  = %d\n",nValueIn / COIN);
+        LogPrintf("valout = %d\n",value_out / COIN);
+        LogPrintf("txfee_aux = %d\n",txfee_aux / COIN);
+        if(tx.IsCoinStake()){
+           if (!MoneyRange(txfee_aux))
+               return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+        }
+        else{
+            if (!MoneyRange(nFees))
+               return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+        }
+
         return true;
     }
 }// namespace Consensus
@@ -2965,7 +2989,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     vPos.reserve(block.vtx.size());
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
-
     std::vector <PrecomputedTransactionData> txdata;
     txdata.reserve(
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
@@ -3115,8 +3138,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     }
     // END ZNODE
 
-    if (!control.Wait())
-        return state.DoS(100, false);
+    // if (!control.Wait())
+    //     return state.DoS(100, false);
     int64_t nTime4 = GetTimeMicros();
     nTimeVerify += nTime4 - nTime2;
     LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2),
@@ -3276,7 +3299,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     int64_t nTime6 = GetTimeMicros();
     nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
-
     return true;
 }
 
@@ -4418,9 +4440,9 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 //btzc: code from vertcoin, add
 bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams, bool fCheckPOW) {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
+    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
         //Maybe cache is not valid
-        if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
+        if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
             return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
         }
     }
@@ -4444,7 +4466,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         // Check that the header is valid (particularly PoW).  This is mostly
         // redundant with the call in AcceptBlockHeader.
-        if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW)) {
+        if (!CheckBlockHeader(block, state, consensusParams, block.IsProofOfWork())) {
             LogPrintf("CheckBlock - CheckBlockHeader -> failed!\n");
             return false;
         }
@@ -4513,6 +4535,8 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if(!mapProofOfStake.count(hash)) // add to mapProofOfStake
            mapProofOfStake.insert(std::make_pair(hash, hashProofOfStake));
     }
+        //Check block signature,from blocksigner
+        CheckBlockSignature(block);
         // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
         if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
             // We should never accept block which conflicts with completed transaction lock,
@@ -4928,7 +4952,7 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
     LogPrintf("AcceptBlock ...\n");
-    if (!AcceptBlockHeader(block, state, chainparams, &pindex)) {
+    if (!AcceptBlockHeader(block, state, chainparams, &pindex,block.IsProofOfWork())) {
         LogPrintf("Invalid AcceptBlockHeader()\n");
         return false;
     }
@@ -5115,7 +5139,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
     if (!ContextualCheckBlock(block, state, pindexPrev))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
     if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
-        return false;
+        return error("%s: Consensus::ConnectBlock: %s", __func__, FormatStateMessage(state));
     assert(state.IsValid());
 
     return true;
@@ -7487,7 +7511,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
         CBlockIndex *pindex = NULL;
         CValidationState state;
-        if (!AcceptBlockHeader(cmpctblock.header, state, chainparams, &pindex)) {
+        if (!AcceptBlockHeader(cmpctblock.header, state, chainparams, &pindex,pindex->IsProofOfWork())) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0)
@@ -7784,7 +7808,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                     return error("non-continuous headers sequence");
                 }
                 //TODOS
-                if (!AcceptBlockHeader(header, state, chainparams, &pindexLast, false)) {
+                if (!AcceptBlockHeader(header, state, chainparams, &pindexLast, pindexLast->IsProofOfWork())) {
                     int nDoS;
                     if (state.IsInvalid(nDoS)) {
                         if (nDoS > 0) Misbehaving(pfrom->GetId(), nDoS);

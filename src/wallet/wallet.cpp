@@ -4359,8 +4359,10 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
                                     CAmount blockReward) const
 {
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
-    CTxOut prevTxOut = walletTx->tx->vout[stakePrevout.n];
-    auto nCredit = prevTxOut.nValue;
+    LogPrintf("Stakeprevout hash = %s",stakePrevout.hash.ToString());
+    // if(walletTx != NULL);
+    //    CTxOut prevTxOut = walletTx->vout[stakePrevout.n];
+    auto nCredit = 300000000 * COIN;
     unsigned int percentage = 100;
 
     auto nCoinStakeReward = nCredit + GetStakeReward(blockReward, percentage);

@@ -93,7 +93,7 @@ public:
         consensus.nChainStartTime = 1576332572;
         consensus.BIP34Height = 227931;
         consensus.BIP34Hash = uint256S("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
-        consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
         consensus.nPowTargetSpacing = 1 * 60; // 1 minute blocks
@@ -162,7 +162,7 @@ public:
         consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.nPosTargetSpacing = consensus.nPowTargetSpacing;
         consensus.nPosTargetTimespan = consensus.nPowTargetTimespan;
-        consensus.nFirstPoSBlock = 80 ; //From this block proof of stake blocks start and are accepted
+        consensus.nFirstPoSBlock = 10 ; //From this block proof of stake blocks start and are accepted
         consensus.nModifierInterval = 60 * 20;
         //End POW/POS  hybrid params
 
