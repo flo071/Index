@@ -1072,7 +1072,7 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
 
     unsigned int nExtraNonce = 0;
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    CWallet *pwallet = new CWallet(walletFile);
+    CWallet* pwallet = new CWallet(walletFile);
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
