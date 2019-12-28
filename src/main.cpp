@@ -3105,10 +3105,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     //btzc: Add time to check
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     //check on this later and before relase
-    // if (block.vtx[0].GetValueOut() > blockReward)
-    //     return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
-    //                                 block.vtx[0].GetValueOut(), blockReward),
-    //                      REJECT_INVALID, "bad-cb-amount");
 
     // ZNODE : MODIFIED TO CHECK ZNODE PAYMENTS AND SUPERBLOCKS
     // It's possible that we simply don't have enough data and this could fail
@@ -3123,7 +3119,13 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
        LogPrintf("ConnectBlock::Block is proof of work.\n");
     else
        LogPrintf("ConnectBlock::Block is proof of stake.\n");
-    
+
+    if (isPoWBlock && block.vtx[0].GetValueOut() > blockReward)
+        return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
+                                    block.vtx[0].GetValueOut(), blockReward),
+                         REJECT_INVALID, "bad-cb-amount");
+
+
     //Log what coinbasetx will be
     LogPrintf("coinbaseTransaction will be %s\n",!isPoWBlock ? "block.vtx[1]" : "block.vtx[0]");
     std::string strError = "";

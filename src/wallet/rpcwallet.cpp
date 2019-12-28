@@ -83,7 +83,7 @@ void EnsureSigmaWalletIsAvailable()
 
 void EnsureWalletIsUnlocked()
 {
-    if (pwalletMain->IsLocked())
+    if (pwalletMain->IsLocked() || pwalletMain->fWalletUnlockStakingOnly)
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 }
 
@@ -2037,10 +2037,14 @@ UniValue walletpassphrase(const UniValue& params, bool fHelp)
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
     // Alternately, find a way to make params[0] mlock()'d to begin with.
     strWalletPass = params[0].get_str().c_str();
-
+    bool stakingOnly = false;
+    if (params.size() == 3)
+        stakingOnly = params[2].get_bool();
+    if (!pwalletMain->IsLocked() && pwalletMain->fWalletUnlockStakingOnly && stakingOnly)
+        throw JSONRPCError(RPC_WALLET_ALREADY_UNLOCKED, "Error: Wallet is already unlocked for staking.");
     if (strWalletPass.length() > 0)
     {
-        if (!pwalletMain->Unlock(strWalletPass))
+        if (!pwalletMain->Unlock(strWalletPass,false,stakingOnly))
             throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
     }
     else

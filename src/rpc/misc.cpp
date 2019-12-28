@@ -354,12 +354,6 @@ UniValue getstakingstatus(const UniValue& params, bool fHelp)
     obj.push_back(Pair("znsync", znodeSync.IsSynced()));
 
     bool nStaking = false;
-    if(chainActive.Tip()->nHeight + 1 >= Params().GetConsensus().nFirstPoSBlock){
-    const CChainParams &chainparams = Params();
-    boost::thread_group threadGroup;
-    threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
-    }
-
 
     if (nLastCoinStakeSearchInterval > 0)
         nStaking = true;

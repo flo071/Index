@@ -399,10 +399,14 @@ bool CWallet::LoadWatchOnly(const CScript &dest) {
     return CCryptoKeyStore::AddWatchOnly(dest);
 }
 
-bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirstUnlock) {
+bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirstUnlock, bool stakingOnly) {
     CCrypter crypter;
     CKeyingMaterial vMasterKey;
-
+    if (!IsLocked()) {
+        fWalletUnlockStakingOnly = stakingOnly;
+        return true;
+    }
+    
     {
         LOCK(cs_wallet);
         BOOST_FOREACH(const MasterKeyMap::value_type &pMasterKey, mapMasterKeys)
@@ -4397,9 +4401,12 @@ bool CWallet::CreateCoinStake(
     //static StakeCoinsSet setStakeCoins;
     static int nLastStakeSetUpdate = 0;
 
-    if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime && nBalance < 100 * COIN) {
+    if (GetTime() - nLastStakeSetUpdate > nStakeSetUpdateTime) {
         setStakeCoins.clear();
+        //Get new list of mintablecoins
+    //    LOCK(pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
+    //     pwalletMain->MintableCoins();
         CScript scriptPubKey;
 
         if (!SelectStakeCoins(setStakeCoins, nBalance, fGenerateSegwit, scriptPubKey)) {

@@ -138,12 +138,13 @@ void BlockAssembler::resetBlock()
 CBlockTemplate* BlockAssembler::CreateNewBlock(
     const CScript& scriptPubKeyIn,
     bool fProofOfStake,
+    CWallet* wallet,
     const vector<uint256>& tx_ids)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    CWallet *wallet = new CWallet(walletFile);
+    wallet = new CWallet(walletFile);
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
@@ -469,7 +470,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
     //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
     if(fProofOfStake &&
-       pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
+       pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock && wallet !=NULL)
     {
         assert(wallet);
         boost::this_thread::interruption_point();
@@ -530,18 +531,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     }
     LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
     return pblocktemplate.release();
-}
-
-
-CBlockTemplate* BlockAssembler::CreateNewBlockWithKey(CReserveKey &reservekey) {
-    LogPrintf("CreateNewBlockWithKey()\n");
-    CPubKey pubkey;
-    if (!reservekey.GetReservedKey(pubkey))
-        return NULL;
-
-    CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
-//    CScript scriptPubKey = GetScriptForDestination(pubkey.GetID());;
-    return CreateNewBlock(scriptPubKey, false,{});
 }
 
 bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
@@ -1106,6 +1095,16 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
                     }
                     MilliSleep(1000);
                 } while (true);
+                            if(fProofOfStake)
+            {
+                if (chainActive.Tip()->nHeight+1 < chainparams.GetConsensus().nFirstPoSBlock ||
+                    wallet->IsLocked() || !znodeSync.IsSynced())
+                {
+                    nLastCoinStakeSearchInterval = 0;
+                    MilliSleep(5000);
+                    continue;
+                }
+            }
             }
             //
             // Create new block
@@ -1113,7 +1112,7 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
 
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
-            unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript,fProofOfStake,{}));
+            unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript,fProofOfStake,wallet,{}));
             if (!pblocktemplate.get())
             {
                 LogPrintf("Failed to find a coinstake\n");

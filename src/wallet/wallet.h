@@ -844,7 +844,10 @@ public:
     //! Adds a watch-only address to the store, without saving it to disk (used by LoadWallet)
     bool LoadWatchOnly(const CScript &dest);
 
-    bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
+    bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false, bool stakingOnly=false);
+    bool fWalletUnlockStakingOnly = false;
+    bool isLockedForStaking() { return fWalletUnlockStakingOnly; }
+
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
