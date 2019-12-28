@@ -4538,8 +4538,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if(!mapProofOfStake.count(hash)) // add to mapProofOfStake
            mapProofOfStake.insert(std::make_pair(hash, hashProofOfStake));
     }
-        //Check block signature,from blocksigner
-        CheckBlockSignature(block);
         // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
         if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
             // We should never accept block which conflicts with completed transaction lock,
@@ -4602,6 +4600,8 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if (!sigma::CheckSigmaBlock(state, block)) {
             return false;
         }
+        //Check block signature,from blocksigner
+        CheckBlockSignature(block);
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
