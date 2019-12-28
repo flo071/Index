@@ -4440,9 +4440,9 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 //btzc: code from vertcoin, add
 bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams, bool fCheckPOW) {
     int nHeight = ZerocoinGetNHeight(block);
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
         //Maybe cache is not valid
-        if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
+        if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
             return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
         }
     }
@@ -4466,7 +4466,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         // Check that the header is valid (particularly PoW).  This is mostly
         // redundant with the call in AcceptBlockHeader.
-        if (!CheckBlockHeader(block, state, consensusParams, block.IsProofOfWork())) {
+        if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW && block.IsProofOfWork())) {
             LogPrintf("CheckBlock - CheckBlockHeader -> failed!\n");
             return false;
         }
