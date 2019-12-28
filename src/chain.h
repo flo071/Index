@@ -311,7 +311,7 @@ public:
         SetNull();
     }
 
-    CBlockIndex(const CBlock& block)
+    explicit CBlockIndex(const CBlock& block)
     {
         SetNull();
 
@@ -320,6 +320,7 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+
         //Proof of Stake
         bnChainTrust = uint256();
         nMint = 0;
@@ -375,14 +376,6 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-
-        // Index - MTP
-        // if(block.IsMTP()){
-		// 	block.nVersionMTP = nVersionMTP;
-        //     block.mtpHashValue = mtpHashValue;
-        //     block.reserved[0] = reserved[0];
-        //     block.reserved[1] = reserved[1];
-		// }
         return block;
     }
 
