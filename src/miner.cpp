@@ -464,10 +464,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         }
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
+
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
             std::vector<const CWalletTx*> vwtxPrev;
     CAmount blockReward = nFees + GetBlockSubsidy(pindexPrev->nHeight + 1 , chainparams.GetConsensus(), nBlockTime);
-
+     if(fProofOfStake && pindexPrev->nHeight +1 < chainparams.GetConsensus().nFirstPoSBlock){
+         throw std::runtime_error("Called zcoinstakeminter before pos phase");
+     }
     //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
     if(fProofOfStake &&
        pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock && wallet !=NULL)
@@ -504,7 +507,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     }
 
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
-         coinbaseTx.vout[0].nValue += blockReward;
+         if(!fProofOfStake)
+            coinbaseTx.vout[0].nValue += blockReward;
         pblock->vtx[0] = coinbaseTx;
 
         // Fill in header
@@ -1135,6 +1139,13 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
                     throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
                 }
                 LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
+                if(fProofOfStake) {
+                SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                ProcessBlockFound(pblock, chainparams);
+                SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                MilliSleep(10000);
+                continue;
+            }
             }
        
             //     // check if block is valid
@@ -1144,13 +1155,6 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
             //     throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
             // }
                         // process proof of stake block
-            if(fProofOfStake) {
-                SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                ProcessBlockFound(pblock, chainparams);
-                SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                MilliSleep(10000);
-                continue;
-            }
             LogPrintf("BEFORE: search\n");
             //
             // Search

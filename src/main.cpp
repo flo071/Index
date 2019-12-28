@@ -1468,7 +1468,6 @@ bool AcceptToMemoryPoolWorker(
                         return false; // fMissingInputs and !state.IsInvalid() is used to detect this condition, don't set state.Invalid()
                     }
                 }
-
                 // are the actual inputs available?
                 if (!view.HaveInputs(tx)) {
                     LogPrintf("cause by -> bad-txns-inputs-spent!\n");
@@ -2064,22 +2063,17 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     }
     catch (const std::exception &e) {
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
-    }
-
-   
-    if(block.IsProofOfWork()){
-            if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)){
-        //Maybe cache is not valid
-        if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)){
-            return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
-        }
-    }
-    }
-    // Check the header proof of stake
-    else {
-        // CheckStakeKernelHash()
-    }
-
+    }  
+    // Check the header
+    // For proofofstake blocks
+    uint256 hashProofOfStake;
+    //powhash and gethash are same,we use this for consistency
+    uint256 hash = block.GetPoWHash();
+    if (block.IsProofOfWork() && !CheckProofOfWork(hash, block.nBits, consensusParams))
+            return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    else if(block.IsProofOfStake() && !CheckProofOfStake(block, hashProofOfStake))
+            return error("ReadBlockFromDisk(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
+    
     return true;
 }
 bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus::Params& consensusParams)
@@ -2100,9 +2094,15 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
+    // For proofofstake blocks
+    uint256 hashProofOfStake;
+    //powhash and gethash are same,we use this for consistency
+    uint256 hash = block.GetPoWHash();
+    if (block.IsProofOfWork() && !CheckProofOfWork(hash, block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-
+    else if(block.IsProofOfStake() && !CheckProofOfStake(block, hashProofOfStake)) {
+            return error("ReadBlockFromDisk(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
+    }
     return true;
 }
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
@@ -2412,7 +2412,7 @@ namespace Consensus {
             assert(coins);
 
             // If prev is coinbase, check that it's matured
-            if (coins->IsCoinBase()) {
+            if (coins->IsCoinBase() || coins->IsCoinStake()) {
                 if (nSpendHeight - coins->nHeight < COINBASE_MATURITY)
                     return state.Invalid(false,
                                          REJECT_INVALID, "bad-txns-premature-spend-of-coinbase",
@@ -2486,7 +2486,8 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                 const COutPoint &prevout = tx.vin[i].prevout;
                 const CCoins *coins = inputs.AccessCoins(prevout.hash);
                 assert(coins);
-
+                if(tx.IsCoinStake())
+                    continue;
                 // Verify signature
                 CScriptCheck check(*coins, tx, i, flags, cacheStore, &txdata);
                 if (pvChecks) {
@@ -2727,6 +2728,9 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
                 const CTxInUndo &undo = txundo.vprevout[j];
                 if (!ApplyTxInUndo(undo, view, out))
                     fClean = false;
+                
+                // erase the spent input
+                mapStakeSpent.erase(out);
             }
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
@@ -2929,7 +2933,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx) {
             const CCoins *coins = view.AccessCoins(tx.GetHash());
-            if (coins && !coins->IsPruned())
+            if (coins && !coins->IsPruned() && !tx.IsCoinStake())
                 return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"), REJECT_INVALID,
                                  "bad-txns-BIP30");
         }
@@ -3562,7 +3566,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
                     false /* markZcoinSpendTransactionSerial */
                 );
             }
-            if (tx.IsCoinBase() || !AcceptToMemoryPool(mempool, stateDummy, tx, true, false, NULL)) {
+            if (tx.IsCoinBase() || tx.IsCoinStake() ||!AcceptToMemoryPool(mempool, stateDummy, tx, true, false, NULL)) {
                 mempool.removeRecursive(tx, removed);
 
                 // Changes to mempool should also be made to Dandelion stempool.

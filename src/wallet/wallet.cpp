@@ -1854,7 +1854,7 @@ void CWallet::ReacceptWalletTransactions() {
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
     assert(pwallet->GetBroadcastTransactions());
-    if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
+    if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0 && !IsCoinStake()) {
         CValidationState state;
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || InStempool() ||
@@ -4097,15 +4097,27 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 bool CWallet::MintableCoins()
 {
     std::vector<COutput> vCoins;
+    {
     LOCK2(cs_main, cs_wallet);
-    AvailableCoinsZ(vCoins, true);
+        AvailableCoinsZ(vCoins, true);
+
+    }
     LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
     vCoinsStakeable = vCoins;
-    LogPrintf ("Size of vCoinsStakeable in MintableCoins %d\n",vCoins.size());
-    return true;
+    LogPrintf ("Size of vCoinsStakeable in MintableCoins %d\n",vCoinsStakeable.size());
+    return vCoins.size() > 0;
 }
 
-
+bool CWallet::MintableCoinsSafe()
+{
+    std::vector<COutput> vCoins;
+    AvailableCoins(vCoins, true);
+    LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
+    if(vCoins.size() > 0)
+        vCoinsStakeable = vCoins;
+    LogPrintf ("Size of vCoinsStakeable in MintableCoins %d\n",vCoinsStakeable.size());
+    return vCoins.size() > 0;
+}
 bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, bool fSelectWitness, const CScript &scriptFilterPubKey) const
 {
     CCoinControl coinControl;
@@ -4114,83 +4126,81 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
     CAmount nAmountSelected = 0;
     LogPrintf("amountselected initialized\n");
     std::set<CScript> rejectCache;
+    // pwalletMain->MintableCoinsSafe();    
+    for (const COutput& out : vCoinsStakeable) {
+        //make sure not to outrun target amount
+        CScript scriptPubKeyKernel;
+        scriptPubKeyKernel = out.tx->vout[out.i].scriptPubKey;
 
-    // for (const COutput& out : vCoins) {
-    //     //make sure not to outrun target amount
-    //     CScript scriptPubKeyKernel;
-    //     scriptPubKeyKernel = out.tx->vout[out.i].scriptPubKey;
+        if(!coinControl.fAllowWatchOnly && !out.fSpendable)
+            continue;
 
-    //     if(!coinControl.fAllowWatchOnly && !out.fSpendable)
-    //         continue;
+        CTxDestination dest;
+        if(!ExtractDestination(scriptPubKeyKernel, dest))
+            continue;
 
-    //     CTxDestination dest;
-    //     if(!ExtractDestination(scriptPubKeyKernel, dest))
-    //         continue;
+        // // for staking we support P2PKH
+        // if(!boost::get<CKeyID&>(&dest))
+        //     continue;
 
-    //     // // for staking we support P2PKH
-    //     // if(!boost::get<CKeyID&>(&dest))
-    //     //     continue;
+        // if(!fSelectWitness && !boost::get<CKeyID&>(&dest))
+        //     continue;
 
-    //     // if(!fSelectWitness && !boost::get<CKeyID&>(&dest))
-    //     //     continue;
+        //        LogPrintf("scriptPubKeyKernel is good\n");
 
-    //     //        LogPrintf("scriptPubKeyKernel is good\n");
+        //for now we will comment this out
+        //        if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
+        //            continue;
 
-    //     //for now we will comment this out
-    //     //        if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
-    //     //            continue;
+        //        LogPrintf("amount is good\n");
 
-    //     //        LogPrintf("amount is good\n");
+        //check for min age
+        if (GetTime() - out.tx->GetTxTime() < Params().GetConsensus().nStakeMinAge)
+            continue;
 
-    //     //check for min age
-    //     if (GetTime() - out.tx->GetTxTime() < Params().GetConsensus().nStakeMinAge)
-    //         continue;
+        //        LogPrintf("min age is good\n");
 
-    //     //        LogPrintf("min age is good\n");
+        // if (!out.hashBlock)
+        //     continue;
 
-    //     // if (!out.hashBlock)
-    //     //     continue;
+        //check that it is matured
+        if (out.nDepth < (out.tx->IsCoinStake() ? COINBASE_MATURITY : 10))
+            continue;
 
-    //     //check that it is matured
-    //     if (out.nDepth < (out.tx->IsCoinStake() ? COINBASE_MATURITY : 10))
-    //         continue;
+        //        LogPrintf("maturity is good\n");
 
-    //     //        LogPrintf("maturity is good\n");
+        auto scriptPubKeyCoin = out.tx->vout[out.i].scriptPubKey;
 
-    //     auto scriptPubKeyCoin = out.tx->vout[out.i].scriptPubKey;
+        if(!scriptFilterPubKey.empty() && scriptPubKeyCoin != scriptFilterPubKey)
+            continue;
 
-    //     if(!scriptFilterPubKey.empty() && scriptPubKeyCoin != scriptFilterPubKey)
-    //         continue;
+        //        LogPrintf("filtering is good\n");
 
-    //     //        LogPrintf("filtering is good\n");
-
-    //     if(rejectCache.count(scriptPubKeyCoin)) {
-    //         continue;
-    //     }
-
-    //     //        LogPrintf("reject is good\n");
-
-    //     nAmountSelected += out.tx->vout[out.i].nValue;
-    //     setCoins.emplace(out.tx, out.i);
-    // }
-        LogPrintf("starting for loop\n");
-        LogPrintf ("Size of vCoinsStakeable %d\n",vCoinsStakeable.size());
-            for (const COutput &out : vCoinsStakeable) {
-                 LogPrintf("Got something\n");
-            
-            // // make sure not to outrun target amount
-            // if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
-            //     continue;
-
-            // if (out.tx->vin[0].IsZerocoinSpend() && !out.tx->IsInMainChain())
-            //     continue;
-
-            // // //check for maturity (min age/depth)
-
-            //add to our stake set
-            nAmountSelected += out.tx->vout[out.i].nValue;
-            setCoins.emplace(out.tx, out.i);
+        if(rejectCache.count(scriptPubKeyCoin)) {
+            continue;
         }
+
+        //        LogPrintf("reject is good\n");
+
+        nAmountSelected += out.tx->vout[out.i].nValue;
+        setCoins.emplace(out.tx, out.i);
+    }
+        //     for (const COutput &out : vCoinsStakeable) {
+        //          LogPrintf("Got something\n");
+            
+        //     // // make sure not to outrun target amount
+        //     // if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
+        //     //     continue;
+
+        //     // if (out.tx->vin[0].IsZerocoinSpend() && !out.tx->IsInMainChain())
+        //     //     continue;
+
+        //     // // //check for maturity (min age/depth)
+
+        //     //add to our stake set
+        //     nAmountSelected += out.tx->vout[out.i].nValue;
+        //     setCoins.emplace(out.tx, out.i);
+        // }
         return true;
 }
 
@@ -4406,7 +4416,7 @@ bool CWallet::CreateCoinStake(
         //Get new list of mintablecoins
     //    LOCK(pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
-    //     pwalletMain->MintableCoins();
+    // pwalletMain->MintableCoins();
         CScript scriptPubKey;
 
         if (!SelectStakeCoins(setStakeCoins, nBalance, fGenerateSegwit, scriptPubKey)) {
@@ -9029,7 +9039,7 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex *&pindexRet) const {
 }
 
 int CMerkleTx::GetBlocksToMaturity() const {
-    if (!IsCoinBase())
+    if (!IsCoinBase() && !IsCoinStake())
         return 0;
     return max(0, (COINBASE_MATURITY + 1) - GetDepthInMainChain());
 }

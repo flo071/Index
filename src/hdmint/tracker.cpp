@@ -716,6 +716,7 @@ list<CSigmaEntry> CHDMintTracker::MintsAsSigmaEntries(bool fUnusedOnly, bool fMa
 std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
     std::vector<CMintMeta> setMints;
+    {
     LOCK2(cs_main, pwalletMain->cs_wallet);
     CWalletDB walletdb(strWalletFile);
     if (fLoad) {
@@ -771,8 +772,9 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
     //overwrite any updates
     for (CMintMeta& meta : vOverWrite)
         UpdateState(meta);
-
+ }
     return setMints;
+   
 }
 
 /**
