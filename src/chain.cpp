@@ -120,22 +120,7 @@ void CBlockIndex::SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModif
     if (fGeneratedStakeModifier)
         nFlags |= BLOCK_STAKE_MODIFIER;
 }
-arith_uint256 CBlockIndex::GetBlockTrust() const
-{
-    arith_uint256 bnTarget;
-    bnTarget.SetCompact(nBits);
-    if (bnTarget <= 0)
-        return 0;
 
-    if (IsProofOfStake()) {
-        // Return trust score as usual
-        return (arith_uint256(1) << 256) / (bnTarget + 1);
-    } else {
-        // Calculate work amount for block
-        arith_uint256 bnPoWTrust = ((~arith_uint256(0) >> 20) / (bnTarget + 1));
-        return bnPoWTrust > 1 ? bnPoWTrust : 1;
-    }
-}
 void CBlockIndex::BuildSkip()
 {
     if (pprev)
@@ -172,4 +157,21 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& fr
         return sign * std::numeric_limits<int64_t>::max();
     }
     return sign * r.GetLow64();
+}
+
+arith_uint256 CBlockIndex::GetBlockTrust() const
+{
+    arith_uint256 bnTarget;
+    bnTarget.SetCompact(nBits);
+    if (bnTarget <= 0)
+        return 0;
+
+    if (IsProofOfStake()) {
+        // Return trust score as usual
+        return (arith_uint256(1) << 256) / (bnTarget + 1);
+    } else {
+        // Calculate work amount for block
+        arith_uint256 bnPoWTrust = ((~arith_uint256(0) >> 20) / (bnTarget + 1));
+        return bnPoWTrust > 1 ? bnPoWTrust : 1;
+    }
 }

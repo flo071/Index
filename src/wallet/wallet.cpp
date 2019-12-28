@@ -4092,30 +4092,13 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 }
 bool CWallet::MintableCoins()
 {
-    //    CAmount nBalance = GetBalance();
-    //    if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
-    //        return error("MintableCoins() : invalid reserve balance amount");
-    //    if (nBalance <= nReserveBalance)
-    //        return false;
-
     std::vector<COutput> vCoins;
     LOCK2(cs_main, cs_wallet);
     AvailableCoinsZ(vCoins, true);
     LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
     vCoinsStakeable = vCoins;
     LogPrintf ("Size of vCoinsStakeable in MintableCoins %d\n",vCoins.size());
-
-    for (const COutput& out : vCoins)
-    {
-                        //  LogPrintf("Got something\n");
-
-        if (GetTime() - out.tx->GetTxTime() > Params().GetConsensus().nStakeMinAge)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return true;
 }
 
 
