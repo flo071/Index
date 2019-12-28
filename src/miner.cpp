@@ -142,7 +142,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    CWallet *wallet = pwalletMain;
+    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    CWallet *wallet = new CWallet(walletFile);
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
@@ -162,7 +163,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    CAmount blockReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus(), nBlockTime);
 
     // Create coinbase tx
     CMutableTransaction coinbaseTx;
@@ -170,7 +170,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = blockReward;
+    coinbaseTx.vout[0].nValue = 0;
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
@@ -461,13 +461,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 }
             }
         }
-        const Consensus::Params &params = chainparams.GetConsensus();
-        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime,nHeight);
-
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
             std::vector<const CWalletTx*> vwtxPrev;
+    CAmount blockReward = nFees + GetBlockSubsidy(pindexPrev->nHeight + 1 , chainparams.GetConsensus(), nBlockTime);
 
     //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
     if(fProofOfStake &&
@@ -481,14 +479,18 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         bool fStakeFound = false;
         if (nSearchTime >= nLastCoinStakeSearchTime) {
             unsigned int nTxNewTime = 0;
-            if (wallet->CreateCoinStake(*wallet, pblock->nBits, blockReward,
+            if (wallet->CreateCoinStake(pblock->nBits, blockReward,
                                         coinstakeTx, nTxNewTime,
                                         vwtxPrev, fIncludeWitness))
             {
                 pblock->nTime = nTxNewTime;
                 coinbaseTx.vout[0].SetEmpty();
                 pblock->vtx.push_back(CTransaction(coinstakeTx));
-                FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+                if(nHeight > HF_ZNODE_PAYMENT_START){
+                    const Consensus::Params &params = chainparams.GetConsensus();
+                    CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime,nHeight);
+                    FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+                }
                 fStakeFound = true;
             }
             LogPrintf("updating stakesearchinterval\n");
@@ -501,6 +503,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     }
 
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+         coinbaseTx.vout[0].nValue += blockReward;
         pblock->vtx[0] = coinbaseTx;
 
         // Fill in header
@@ -1061,7 +1064,8 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
     RenameThread("index-miner");
 
     unsigned int nExtraNonce = 0;
-    CWallet *pwallet = pwalletMain;
+    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    CWallet *wallet = pwalletMain;
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -1127,7 +1131,7 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
             {
                 LogPrintf("CPUMiner : proof-of-stake block found %s \n", pblock->GetHash().ToString().c_str());
 
-                if (!SignBlock(*pblock, *pwallet)) {
+                if (!SignBlock(*pblock, wallet)) {
                     LogPrintf("ZCoinMiner(): Signing new block failed \n");
                     throw std::runtime_error(strprintf("%s: SignBlock failed", __func__));
                 }

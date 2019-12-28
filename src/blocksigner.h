@@ -8,9 +8,9 @@
 #include "key.h"
 #include "primitives/block.h"
 #include "keystore.h"
-
+#include "wallet/wallet.h"
 bool SignBlockWithKey(CBlock& block, const CKey& key);
-bool SignBlock(CBlock& block, const CKeyStore& keystore);
+bool SignBlock(CBlock& block, const CWallet* keystore);
 bool CheckBlockSignature(const CBlock& block);
 
 #endif //PIVX_BLOCKSIGNATURE_H

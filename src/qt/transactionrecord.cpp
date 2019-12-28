@@ -43,6 +43,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     CAmount nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
+                CTxDestination addressz;
 
     bool isAllSigmaSpendFromMe;
 
@@ -78,7 +79,31 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             if(mine & ISMINE_WATCH_ONLY)
                 involvesWatchAddress = true;
         }
-
+    if (wtx.IsCoinStake()) {
+        ExtractDestination(wtx.vout[1].scriptPubKey, addressz);
+  
+        TransactionRecord sub(hash, nTime);
+     if (isminetype mine = wallet->IsMine(wtx.vout[1])) {
+ 
+                // stake reward
+                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                sub.type = TransactionRecord::StakeMint;
+                sub.address = CBitcoinAddress(addressz).ToString();
+                sub.credit = nNet;
+            
+        } else {
+            //Masternode reward
+            CTxDestination destMN;
+            int nIndexMN = wtx.vout.size() - 1;
+            if (ExtractDestination(wtx.vout[nIndexMN].scriptPubKey, destMN) && IsMine(*wallet, destMN)) {
+                isminetype mine = wallet->IsMine(wtx.vout[nIndexMN]);
+                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                sub.type = TransactionRecord::MNReward;
+                sub.address = CBitcoinAddress(destMN).ToString();
+                sub.credit = wtx.vout[nIndexMN].nValue;
+            }
+        }
+    }
         if(isAllToMe){
             TransactionRecord sub(hash, nTime);
             sub.involvesWatchAddress = involvesWatchAddress;

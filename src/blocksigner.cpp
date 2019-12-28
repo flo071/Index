@@ -30,7 +30,7 @@ bool GetKeyIDFromUTXO(const CTxOut& txout, CKeyID& keyID)
     return true;
 }
 
-bool SignBlock(CBlock& block, const CKeyStore& keystore)
+bool SignBlock(CBlock& block, const CWallet* keystore)
 {
     CKeyID keyID;
     if (block.IsProofOfWork()) {
@@ -50,7 +50,10 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
             LogPrintf("Got keyid %s\n",keyID.ToString().c_str());
 
     CKey key;
-    if (!keystore.GetKey(keyID, key))
+    if(!keystore->HaveKey(keyID)){
+    return error("%s: we dont have this key in keystore :( \n", __func__);
+    }
+    if (!keystore->GetKey(keyID, key))
         return error("%s: failed to get key from keystore", __func__);
 
     return SignBlockWithKey(block, key);
@@ -61,7 +64,7 @@ bool CheckBlockSignature(const CBlock& block)
     if (block.IsProofOfWork())
         return block.vchBlockSig.empty();
 
-    if (block.vchBlockSig.empty())
+    if (block.vchBlockSig.empty() && !block.IsProofOfStake())
         return error("%s: vchBlockSig is empty!", __func__);
 
     /** Each block is signed by the private key of the input that is staked. This can be either zPIV or normal UTXO

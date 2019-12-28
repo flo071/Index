@@ -4343,11 +4343,17 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
 {
     const CWalletTx *walletTx = GetWalletTx(stakePrevout.hash);
     LogPrintf("Stakeprevout hash = %s",stakePrevout.hash.ToString());
-    // if(walletTx != NULL);
-    //    CTxOut prevTxOut = walletTx->vout[stakePrevout.n];
-    auto nCredit = 300000000 * COIN;
+        vector<COutput> vecOutputs;
+        CAmount  nCredit;
+    // assert(pwalletMain != NULL);
+    // LOCK2(cs_main, pwalletMain->cs_wallet);
+    // pwalletMain->AvailableCoinsZ(vecOutputs, false, NULL, true);
+        for(const COutput& out: vCoinsStakeable) {
+        if(stakePrevout.hash == out.tx->GetHash()){
+             nCredit = out.tx->vout[out.i].nValue;
+        }
+    }
     unsigned int percentage = 100;
-
     auto nCoinStakeReward = nCredit + GetStakeReward(blockReward, percentage);
     transaction.vin.emplace_back(CTxIn(stakePrevout));
     //presstab HyperStake - calculate the total size of our new output including the stake reward so that we can use it to decide whether to split the stake outputs
@@ -4363,7 +4369,7 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
     }
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore& keystore,
+bool CWallet::CreateCoinStake(
                               unsigned int nBits,
                               CAmount blockReward,
                               CMutableTransaction &txNew,

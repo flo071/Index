@@ -1251,7 +1251,7 @@ public:
                                     const CScript &scriptPubKeyOut,
                                     const COutPoint &stakePrevout,
                                     CAmount blockReward) const;
-    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAmount blockReward,
+    bool CreateCoinStake(unsigned int nBits, CAmount blockReward,
                          CMutableTransaction &txNew, unsigned int& nTxNewTime,
                          std::vector<const CWalletTx *> &vwtxPrev,
                          bool fGenerateSegwit);
