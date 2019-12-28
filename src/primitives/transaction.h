@@ -412,7 +412,7 @@ private:
 
 public:
     // Default transaction version.
-    static const int32_t CURRENT_VERSION = 1;
+    static const int32_t CURRENT_VERSION=2;
 
     // Changing the default transaction version requires a two step process: first
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
@@ -478,8 +478,6 @@ public:
     // Compute modified tx size for priority calculation (optionally given tx size)
     unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
 
-    bool IsCoinBase() const;
-
     // Returns true, if this is any zerocoin transaction.
     bool IsZerocoinTransaction() const;
 
@@ -493,6 +491,11 @@ public:
     bool IsSigmaMint() const;
 
     bool IsZerocoinRemint() const;
+
+    bool IsCoinBase() const
+    {
+        return (vin.size() == 1 && vin[0].prevout.IsNull());
+    }
 
     bool IsCoinStake() const
     {

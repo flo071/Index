@@ -47,7 +47,7 @@ bool SignBlock(CBlock& block, const CKeyStore& keystore)
         if (!GetKeyIDFromUTXO(block.vtx[1].vout[1], keyID))
             return error("%s: failed to find key for PoS", __func__);
 
-            LogPrintf("Got keyid %s\n",keyID.ToString);
+            LogPrintf("Got keyid %s\n",keyID.ToString().c_str());
     }
 
     CKey key;

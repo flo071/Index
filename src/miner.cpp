@@ -137,13 +137,12 @@ void BlockAssembler::resetBlock()
 
 CBlockTemplate* BlockAssembler::CreateNewBlock(
     const CScript& scriptPubKeyIn,
-     bool fProofOfStake,
+    bool fProofOfStake,
     const vector<uint256>& tx_ids)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    CWallet *wallet = new CWallet(walletFile);
+    CWallet *wallet = pwalletMain;
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
@@ -162,16 +161,18 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
+
+    CAmount blockReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus(), nBlockTime);
+
     // Create coinbase tx
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = 0;
+    coinbaseTx.vout[0].nValue = blockReward;
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
-
 
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
@@ -460,22 +461,16 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 }
             }
         }
-        CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), nBlockTime);
-        // Update coinbase transaction with additional info about znode and governance payments,
-        // get some info back to pass to getblocktemplate
-        if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
-            const Consensus::Params &params = chainparams.GetConsensus();
-            CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime,nHeight);
-            coinbaseTx.vout[0].nValue -= znodePayment;
-            FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
-        }
+        const Consensus::Params &params = chainparams.GetConsensus();
+        CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime,nHeight);
 
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
             std::vector<const CWalletTx*> vwtxPrev;
+
     //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
-    if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
+    if(fProofOfStake &&
        pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
     {
         assert(wallet);
@@ -493,7 +488,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 pblock->nTime = nTxNewTime;
                 coinbaseTx.vout[0].SetEmpty();
                 pblock->vtx.push_back(CTransaction(coinstakeTx));
-
+                FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
                 fStakeFound = true;
             }
             LogPrintf("updating stakesearchinterval\n");
@@ -504,15 +499,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         if (!fStakeFound)
             return nullptr;
     }
-                LogPrintf("computing coinbase tx\n");
 
-        // Compute final coinbase transaction.
-        if(pindexPrev->nHeight + 1 < chainparams.GetConsensus().nFirstPoSBlock)
-           coinbaseTx.vout[0].nValue += blockReward;
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
         pblock->vtx[0] = coinbaseTx;
-        pblocktemplate->vTxFees[0] = -nFees;
-                LogPrintf("filling header\n");
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -1066,13 +1055,13 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     return true;
 }
 
-void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
+void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
+{
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("index-miner");
 
     unsigned int nExtraNonce = 0;
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    CWallet *pwallet = new CWallet(walletFile);
+    CWallet *pwallet = pwalletMain;
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -1120,25 +1109,12 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
 
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
-            if (pindexPrev) {
-                LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
-            }
-            if(fProofOfStake && !(!sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
-               pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock))
-               {
-                   LogPrintf("ZCoinminer,Proofofstake thread called before proof of stake phase");
-                   return;
-               }
-            LogPrintf("BEFORE: pblocktemplate\n");
-            unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
-                coinbaseScript->reserveScript,fProofOfStake,{}));
-            LogPrintf("AFTER: pblocktemplate\n");
-            if (!pblocktemplate.get()) {
-                if(!fProofOfStake)
-                LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
-                else
-                LogPrintf("Error in ZcoinMiner: No Inputs to stake\n");
-                return;
+            unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript,fProofOfStake,{}));
+            if (!pblocktemplate.get())
+            {
+                LogPrintf("Failed to find a coinstake\n");
+                MilliSleep(5000);
+                continue;
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
@@ -1146,11 +1122,9 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake) {
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
-            // //Sign block
-            // //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
-            if(fProofOfStake && !sporkManager.IsSporkActive(SPORK_15_POS_DISABLED) &&
-               pindexPrev->nHeight + 1 >= chainparams.GetConsensus().nFirstPoSBlock)
-               {
+            //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
+            if(fProofOfStake)
+            {
                 LogPrintf("CPUMiner : proof-of-stake block found %s \n", pblock->GetHash().ToString().c_str());
 
                 if (!SignBlock(*pblock, *pwallet)) {

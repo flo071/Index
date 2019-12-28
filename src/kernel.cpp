@@ -36,8 +36,7 @@ unsigned int getIntervalVersion(bool fTestNet)
 }
 
 // Hard checkpoints of stake modifiers to ensure they are deterministic
-static std::map<int, unsigned int> mapStakeModifierCheckpoints =
-        boost::assign::map_list_of(0, 0x0e00670b);
+static std::map<int, unsigned int> mapStakeModifierCheckpoints = {};
 
 // Get time weight
 int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
@@ -52,8 +51,10 @@ static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64_t& nStakeModi
         return error("GetLastStakeModifier: null pindex");
     while (pindex && pindex->pprev && !pindex->GeneratedStakeModifier())
         pindex = pindex->pprev;
-    if (!pindex->GeneratedStakeModifier())
-        return error("GetLastStakeModifier: no generation at genesis block");
+    if (!pindex->GeneratedStakeModifier()) {
+        nStakeModifier = 0;
+        return true;
+    }
     nStakeModifier = pindex->nStakeModifier;
     nModifierTime = pindex->GetBlockTime();
     return true;
