@@ -167,7 +167,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         sub.address = QCoreApplication::translate("index-core", "Zerocoin->Sigma remint").toStdString();
         parts.append(sub);
     }
-    else if (nNet > 0 || wtx.IsCoinBase() || wtx.IsCoinBase())
+    else if (nNet > 0 || wtx.IsCoinBase() || wtx.IsCoinStake())
     {
         //
         // Credit
