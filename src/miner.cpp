@@ -1141,7 +1141,9 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
                 LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
                 if(fProofOfStake) {
                 SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                ProcessBlockFound(pblock, chainparams);
+                if (!ProcessBlockFound(pblock, chainparams)){
+                   LogPrintf("Proof-of-stake block failed checks\n");
+                }
                 SetThreadPriority(THREAD_PRIORITY_LOWEST);
                 MilliSleep(10000);
                 continue;
