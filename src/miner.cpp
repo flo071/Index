@@ -82,7 +82,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
     // Updating time can change work required on testnet:
     if (consensusParams.fPowAllowMinDifficultyBlocks)
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams,false);
 
     return nNewTime - nOldTime;
 }
@@ -164,6 +164,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
+    // Add dummy coinbase tx as first transaction
+    pblock->vtx.push_back(CTransaction());
+    pblocktemplate->vTxFees.push_back(-1); // updated at end
+    pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
     // Create coinbase tx
     CMutableTransaction coinbaseTx;
@@ -175,10 +179,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
-    // Add dummy coinbase tx as first transaction
-    pblock->vtx.push_back(CTransaction());
-    pblocktemplate->vTxFees.push_back(-1); // updated at end
-    pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
+
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);
@@ -213,6 +214,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
     CAmount nFees = 0;
+            bool fStakeFound = false;
+
 
     {
         LOCK2(cs_main, mempool.cs);
@@ -477,10 +480,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     {
         assert(wallet);
         boost::this_thread::interruption_point();
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus(),fProofOfStake);
         CMutableTransaction coinstakeTx;
         int64_t nSearchTime = pblock->nTime; // search to current time
-        bool fStakeFound = false;
         if (nSearchTime >= nLastCoinStakeSearchTime) {
             unsigned int nTxNewTime = 0;
             if (wallet->CreateCoinStake(pblock->nBits, blockReward,
@@ -497,9 +499,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 }
                 fStakeFound = true;
             }
+            else{
             LogPrintf("updating stakesearchinterval\n");
             nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
             nLastCoinStakeSearchTime = nSearchTime;
+            }
+
         }
 
         if (!fStakeFound)
@@ -515,7 +520,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         if (!fProofOfStake)
             UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus(),fProofOfStake);
         pblock->nNonce         = 0;
 
         // Index - MTP
@@ -1140,22 +1145,17 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
                 }
                 LogPrintf("CPUMiner : proof-of-stake block was signed %s \n", pblock->GetHash().ToString().c_str());
                 if(fProofOfStake) {
-                SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                if (!ProcessBlockFound(pblock, chainparams)){
-                   LogPrintf("Proof-of-stake block failed checks\n");
+                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                    if (!ProcessBlockFound(pblock, chainparams)){
+                        LogPrintf("Proof-of-stake block failed checks\n");
+                    }
+                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                    MilliSleep(10000);
+                    continue;
                 }
-                SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                MilliSleep(10000);
-                continue;
-            }
             }
        
-            //     // check if block is valid
-            // CValidationState state;
-            
-            // if ( fProofOfStake && !TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-            //     throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
-            // }
+
                         // process proof of stake block
             LogPrintf("BEFORE: search\n");
             //

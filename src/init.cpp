@@ -2168,12 +2168,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         LogPrintf("Step 12: ReacceptWalletTransactions\n");
         // Add wallet transactions that aren't already in a block to mapTransactions
         pwalletMain->ReacceptWalletTransactions();
-   //Start staking thread
-    if(GetBoolArg("-staking", true)){
-    //Get mintablecoins
-    pwalletMain->MintableCoins();
-    threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
-    }
         // Run a thread to flush wallet periodically
 
         threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));

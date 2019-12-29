@@ -44,7 +44,7 @@
 #include "init.h"
 #include "hdmint/wallet.h"
 #include "rpc/protocol.h"
-
+#include "miner.h"
 #include "hdmint/tracker.h"
 
 #include <assert.h>
@@ -1813,7 +1813,15 @@ void CWallet::ReacceptWalletTransactions() {
 
     LOCK2(cs_main, cs_wallet);
     std::map < int64_t, CWalletTx * > mapSorted;
+   //Start staking thread
+    if(GetBoolArg("-staking", true)){
+    const CChainParams &chainparams = Params();
+        boost::thread_group threadGroup;
 
+    //Get mintablecoins
+    pwalletMain->MintableCoins();
+    threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
+    }
     // Sort pending wallet transactions based on their initial wallet insertion order
     BOOST_FOREACH(PAIRTYPE(const uint256, CWalletTx)&item, mapWallet)
     {
@@ -1877,6 +1885,7 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
             }
         }
     }
+
     LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
     return false;
 }
@@ -4111,7 +4120,10 @@ bool CWallet::MintableCoins()
 bool CWallet::MintableCoinsSafe()
 {
     std::vector<COutput> vCoins;
-    AvailableCoins(vCoins, true);
+    {
+        LOCK2(cs_main, cs_wallet);
+        AvailableCoinsZ(vCoins, true);
+    }
     LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
     if(vCoins.size() > 0)
         vCoinsStakeable = vCoins;
