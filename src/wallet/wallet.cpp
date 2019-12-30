@@ -4108,7 +4108,7 @@ bool CWallet::MintableCoins()
     std::vector<COutput> vCoins;
     {
     LOCK2(cs_main, cs_wallet);
-        AvailableCoinsZ(vCoins, true);
+        AvailableCoins(vCoins, true);
 
     }
     LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
@@ -4117,19 +4117,6 @@ bool CWallet::MintableCoins()
     return vCoins.size() > 0;
 }
 
-bool CWallet::MintableCoinsSafe()
-{
-    std::vector<COutput> vCoins;
-    {
-        TRY_LOCK(cs_main, cs_wallet);
-        AvailableCoinsZ(vCoins, true);
-    }
-    LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
-    if(vCoins.size() > 0)
-        vCoinsStakeable = vCoins;
-    LogPrintf ("Size of vCoinsStakeable in MintableCoins %d\n",vCoinsStakeable.size());
-    return vCoins.size() > 0;
-}
 bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, bool fSelectWitness, const CScript &scriptFilterPubKey) const
 {
     CCoinControl coinControl;
@@ -4138,7 +4125,6 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
     CAmount nAmountSelected = 0;
     LogPrintf("amountselected initialized\n");
     std::set<CScript> rejectCache;
-    //pwalletMain->MintableCoinsSafe();    
     for (const COutput& out : vCoinsStakeable) {
         //make sure not to outrun target amount
         CScript scriptPubKeyKernel;
@@ -4372,8 +4358,8 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
         vector<COutput> vecOutputs;
         CAmount  nCredit;
     // assert(pwalletMain != NULL);
-    LOCK(cs_wallet);
-    pwalletMain->AvailableCoinsZ(vecOutputs, false, NULL, true);
+    // LOCK(pwalletMain->cs_wallet);
+    // pwalletMain->AvailableCoinsZ(vecOutputs, false, NULL, true);
         for(const COutput& out: vCoinsStakeable) {
         if(stakePrevout.hash == out.tx->GetHash()){
              nCredit = out.tx->vout[out.i].nValue;

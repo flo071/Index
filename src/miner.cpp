@@ -539,6 +539,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
     LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
+    if(fProofOfStake){
+        //Update stakeablecoins
+        LogPrintf("Updated stakeablecoins");
+        pwalletMain->MintableCoins();
+        }
     return pblocktemplate.release();
 }
 
@@ -1062,7 +1067,6 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
     RenameThread("index-miner");
 
     unsigned int nExtraNonce = 0;
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
     CWallet *wallet = pwalletMain;
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
@@ -1133,7 +1137,6 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
 
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
-
             //Check if its a proof of stake block and pos isnt disabled and height is greater than Firstposblock
             if(fProofOfStake)
             {
