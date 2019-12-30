@@ -1468,14 +1468,15 @@ bool AcceptToMemoryPoolWorker(
                         return false; // fMissingInputs and !state.IsInvalid() is used to detect this condition, don't set state.Invalid()
                     }
                 }
+                // Bring the best block into scope
+                view.GetBestBlock();
                 // are the actual inputs available?
                 if (!view.HaveInputs(tx)) {
                     LogPrintf("cause by -> bad-txns-inputs-spent!\n");
                     return state.Invalid(false, REJECT_DUPLICATE, "bad-txns-inputs-spent");
                 }
 
-                // Bring the best block into scope
-                view.GetBestBlock();
+
 
                 nValueIn = view.GetValueIn(tx);
 

@@ -1813,15 +1813,6 @@ void CWallet::ReacceptWalletTransactions() {
 
     LOCK2(cs_main, cs_wallet);
     std::map < int64_t, CWalletTx * > mapSorted;
-   //Start staking thread
-    if(GetBoolArg("-staking", true)){
-    const CChainParams &chainparams = Params();
-        boost::thread_group threadGroup;
-
-    //Get mintablecoins
-    pwalletMain->MintableCoins();
-    threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
-    }
     // Sort pending wallet transactions based on their initial wallet insertion order
     BOOST_FOREACH(PAIRTYPE(const uint256, CWalletTx)&item, mapWallet)
     {
@@ -1857,6 +1848,15 @@ void CWallet::ReacceptWalletTransactions() {
         if (GetBoolArg("-dandelion", true)) {
             wtx.RelayWalletTransaction(false);
         }
+    }
+       //Start staking thread
+    if(GetBoolArg("-staking", true)){
+    const CChainParams &chainparams = Params();
+        boost::thread_group threadGroup;
+
+    //Get mintablecoins
+    pwalletMain->MintableCoins();
+    threadGroup.create_thread(std::bind(&ThreadStakeMinter, boost::ref(chainparams)));
     }
 }
 
@@ -4121,7 +4121,7 @@ bool CWallet::MintableCoinsSafe()
 {
     std::vector<COutput> vCoins;
     {
-        LOCK2(cs_main, cs_wallet);
+        TRY_LOCK(cs_main, cs_wallet);
         AvailableCoinsZ(vCoins, true);
     }
     LogPrintf ("Size of vCoins in MintableCoins %d\n",vCoins.size());
@@ -4138,7 +4138,7 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
     CAmount nAmountSelected = 0;
     LogPrintf("amountselected initialized\n");
     std::set<CScript> rejectCache;
-    // pwalletMain->MintableCoinsSafe();    
+    //pwalletMain->MintableCoinsSafe();    
     for (const COutput& out : vCoinsStakeable) {
         //make sure not to outrun target amount
         CScript scriptPubKeyKernel;
@@ -4372,8 +4372,8 @@ void CWallet::FillCoinStakePayments(CMutableTransaction &transaction,
         vector<COutput> vecOutputs;
         CAmount  nCredit;
     // assert(pwalletMain != NULL);
-    // LOCK2(cs_main, pwalletMain->cs_wallet);
-    // pwalletMain->AvailableCoinsZ(vecOutputs, false, NULL, true);
+    LOCK(cs_wallet);
+    pwalletMain->AvailableCoinsZ(vecOutputs, false, NULL, true);
         for(const COutput& out: vCoinsStakeable) {
         if(stakePrevout.hash == out.tx->GetHash()){
              nCredit = out.tx->vout[out.i].nValue;
@@ -4428,7 +4428,6 @@ bool CWallet::CreateCoinStake(
         //Get new list of mintablecoins
     //    LOCK(pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
-    // pwalletMain->MintableCoins();
         CScript scriptPubKey;
 
         if (!SelectStakeCoins(setStakeCoins, nBalance, fGenerateSegwit, scriptPubKey)) {
