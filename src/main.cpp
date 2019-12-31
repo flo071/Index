@@ -94,7 +94,7 @@ CCriticalSection cs_main;
 
 BlockMap mapBlockIndex;
 CChain chainActive;
-std::map<COutPoint, int> mapStakeSpent;
+std::map<uint256, int> mapStakeSpent;
 CBlockIndex *pindexBestHeader = NULL;
 int64_t nTimeBestReceived = 0;
 CWaitableCriticalSection csBestBlock;
@@ -2731,7 +2731,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
                     fClean = false;
                 
                 // erase the spent input
-                mapStakeSpent.erase(out);
+                mapStakeSpent.erase(out.hash);
             }
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
@@ -3210,7 +3210,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             continue;
         for (const CTxIn in: tx.vin) {
             LogPrintf("mapStakeSpent: Insert %s | %u\n", in.prevout.ToString(), pindex->nHeight);
-            mapStakeSpent.insert(std::make_pair(in.prevout, pindex->nHeight));
+            mapStakeSpent.insert(std::make_pair(in.prevout.hash, pindex->nHeight));
         }
     }
 
@@ -5015,7 +5015,7 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
             // the inputs are spent at the chain tip so we should look at the recently spent outputs
 
             for (CTxIn in : tx.vin) {
-                auto it = mapStakeSpent.find(in.prevout);
+                auto it = mapStakeSpent.find(in.prevout.hash);
                 if (it == mapStakeSpent.end()) {
                     return false;
                 }
@@ -5141,7 +5141,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
     indexDummy.nHeight = pindexPrev->nHeight + 1;
 
     // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime(), fCheckPOW))
+    if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime(), !block.IsProofOfWork()))
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
 //    std::cout << "TestBlockValidity->CheckBlock() nHeight=" << indexDummy.nHeight << std::endl;
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot, indexDummy.nHeight, false))

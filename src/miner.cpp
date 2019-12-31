@@ -506,10 +506,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             }
 
         }
-
+  }
         if (!fStakeFound)
             return nullptr;
     }
+  
+    {
+    CAmount blockReward = nFees + GetBlockSubsidy(pindexPrev->nHeight + 1 , chainparams.GetConsensus(), nBlockTime);
 
         coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
          if(!fProofOfStake)
@@ -533,16 +536,19 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         CValidationState state;
         LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
+        if(fProofOfStake)
+         pwalletMain->MintableCoins();
+
+        LOCK(cs_main);
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
             throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
         LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
     LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
-    if(fProofOfStake){
+    if(fProofOfStake || !fStakeFound){
         //Update stakeablecoins
         LogPrintf("Updated stakeablecoins");
-        pwalletMain->MintableCoins();
         }
     return pblocktemplate.release();
 }
@@ -1129,7 +1135,7 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
             if (!pblocktemplate.get())
             {
                 LogPrintf("Failed to find a coinstake\n");
-                MilliSleep(5000);
+                MilliSleep(10000);
                 continue;
             }
             CBlock *pblock = &pblocktemplate->block;

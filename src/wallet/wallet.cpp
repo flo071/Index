@@ -68,6 +68,7 @@ bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 
 const char *DEFAULT_WALLET_DAT = "wallet.dat";
+extern std::map<uint256, int> mapStakeSpent;
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -4128,26 +4129,32 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
     for (const COutput& out : vCoinsStakeable) {
         //make sure not to outrun target amount
         CScript scriptPubKeyKernel;
+
+       for (const CTxIn &txin: out.tx->vin) {
+        if(mapStakeSpent.find(txin.prevout.hash) == mapStakeSpent.end()) {
+                if(txin.prevout.hash.ToString() !="0000000000000000000000000000000000000000000000000000000000000000")
+                    LogPrintf("Not spent yet Hash:%d\n",txin.prevout.hash.ToString());         
+          } 
+          else {
+            LogPrintf("Spent stakeinput ,Checking next input\n");
+            continue;
+          }
+        }
         scriptPubKeyKernel = out.tx->vout[out.i].scriptPubKey;
 
+
+        // if(mapStakeSpent)
         if(!coinControl.fAllowWatchOnly && !out.fSpendable)
             continue;
+
+        // if (!out.tx->hashBlock)
+        //     continue;
 
         CTxDestination dest;
         if(!ExtractDestination(scriptPubKeyKernel, dest))
             continue;
 
-        // // for staking we support P2PKH
-        // if(!boost::get<CKeyID&>(&dest))
-        //     continue;
-
-        // if(!fSelectWitness && !boost::get<CKeyID&>(&dest))
-        //     continue;
-
-        //        LogPrintf("scriptPubKeyKernel is good\n");
-
-        //for now we will comment this out
-        //        if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
+        // if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
         //            continue;
 
         //        LogPrintf("amount is good\n");
@@ -4158,8 +4165,6 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, b
 
         //        LogPrintf("min age is good\n");
 
-        // if (!out.hashBlock)
-        //     continue;
 
         //check that it is matured
         if (out.nDepth < (out.tx->IsCoinStake() ? COINBASE_MATURITY : 10))
@@ -4448,7 +4453,15 @@ bool CWallet::CreateCoinStake(
         }
         // Read block header
         CBlockHeader block = pindex->GetBlockHeader();
+
         COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
+        if(mapStakeSpent.find(pcoin.first->GetHash()) == mapStakeSpent.end()){
+            // LogPrintf("Unused output,using this\n");
+        }
+        else{
+            continue;
+        }
+
         nTxNewTime = GetAdjustedTime();
         //iterates each utxo inside of CheckStakeKernelHash()
         CScript kernelScript;
