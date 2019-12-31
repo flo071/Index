@@ -2487,6 +2487,8 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                 const COutPoint &prevout = tx.vin[i].prevout;
                 const CCoins *coins = inputs.AccessCoins(prevout.hash);
                 assert(coins);
+                if(tx.IsCoinStake())
+                    continue;
                 // Verify signature
                 CScriptCheck check(*coins, tx, i, flags, cacheStore, &txdata);
                 if (pvChecks) {
@@ -2932,7 +2934,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx) {
             const CCoins *coins = view.AccessCoins(tx.GetHash());
-            if (coins && !coins->IsPruned())
+            if (coins && !coins->IsPruned() && !tx.IsCoinStake())
                 return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"), REJECT_INVALID,
                                  "bad-txns-BIP30");
         }
@@ -3078,6 +3080,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                              nScriptCheckThreads ? &vChecks : NULL))
                 return error("ConnectBlock(): CheckInputs on %s failed with %s",
                              tx.GetHash().ToString(), FormatStateMessage(state));
+            if (!tx.IsCoinStake())
                 control.Add(vChecks);
         }
         nValueOut += tx.GetValueOut();
@@ -3144,8 +3147,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     }
     // END ZNODE
 
-    if (!control.Wait())
-        return state.DoS(100, false);
+    // if (!control.Wait())
+    //     return state.DoS(100, false);
     int64_t nTime4 = GetTimeMicros();
     nTimeVerify += nTime4 - nTime2;
     LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2),
@@ -4603,10 +4606,9 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if (!sigma::CheckSigmaBlock(state, block)) {
             return false;
         }
-        //Check block signature,from blocksigner and return check validation if its a proofofstake block
-        if(!CheckBlockSignature(block) && block.IsProofOfStake()){
-           return error("ProofOfStake Block signature check FAILED\n");
-        }
+        //Check block signature,from blocksigner
+        if(block.IsProofOfStake())
+           CheckBlockSignature(block);
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");

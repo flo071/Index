@@ -120,7 +120,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         }
     }
             
-    if(wtx.IsCoinStake())
+            if(wtx.IsCoinStake())
     {
         TransactionRecord sub(hash, nTime);
         CTxDestination address;

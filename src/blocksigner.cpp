@@ -77,7 +77,7 @@ bool CheckBlockSignature(const CBlock& block)
         vector<vector<unsigned char> > vSolutions;
         const CTxOut& txout = block.vtx[1].vout[1];
         if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-            return error("Can't Solve txout of stake\n");
+            return false;
         if (whichType == TX_PUBKEY || whichType == TX_PUBKEYHASH) {
             valtype& vchPubKey = vSolutions[0];
             pubkey = CPubKey(vchPubKey);
@@ -86,7 +86,5 @@ bool CheckBlockSignature(const CBlock& block)
     if (!pubkey.IsValid())
         return error("%s: invalid pubkey %s", __func__, HexStr(pubkey));
 
-    if(!pubkey.Verify(block.GetHash(), block.vchBlockSig))
-        return error("Stake signature pubkey doesnt match signature\n");
-    return true;
+    return pubkey.Verify(block.GetHash(), block.vchBlockSig);
 }
