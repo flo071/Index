@@ -1132,11 +1132,15 @@ void static ZcoinMiner(const CChainParams &chainparams,bool fProofOfStake)
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
             unique_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript,fProofOfStake,wallet,{}));
-            if (!pblocktemplate.get())
+            if (!pblocktemplate.get() && fProofOfStake)
             {
                 LogPrintf("Failed to find a coinstake\n");
-                MilliSleep(10000);
+                MilliSleep(20000);
                 continue;
+            }
+            else if  (!pblocktemplate.get()){
+                LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                return;                
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
