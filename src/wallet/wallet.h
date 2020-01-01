@@ -659,7 +659,7 @@ private:
     // Stake Settings
     unsigned int nHashDrift = 45;
     unsigned int nHashInterval = 22;
-    int nStakeSetUpdateTime = 100; // 5 mins
+    int nStakeSetUpdateTime = 60; // 1 min
 
     mutable bool fAnonymizableTallyCached;
     mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;

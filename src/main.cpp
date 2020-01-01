@@ -4518,6 +4518,10 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
             LogPrintf("CheckBlock - first tx is not coinbase -> failed!\n");
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
         }
+        // peercoin: first coinbase output should be empty if proof-of-stake block
+        if (block.IsProofOfStake() && !block.vtx[0].vout[0].IsEmpty())
+            return state.DoS(100, false, REJECT_INVALID, "bad-cb-notempty", false, "coinbase output not empty in PoS block");
+
         for (unsigned int i = 1; i < block.vtx.size(); i++) {
             if (block.vtx[i].IsCoinBase()) {
                 LogPrintf("CheckBlock - more than one coinbase -> failed!\n");
