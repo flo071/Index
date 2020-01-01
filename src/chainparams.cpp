@@ -158,7 +158,7 @@ public:
         consensus.nDisableZerocoinStartBlock = 2;
 
         //START POW/POS hybrid params
-        consensus.nStakeMinAge = 60 * 60;
+        consensus.nStakeMinAge = 60;
         consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.nPosTargetSpacing = consensus.nPowTargetSpacing;
         consensus.nPosTargetTimespan = consensus.nPowTargetTimespan;

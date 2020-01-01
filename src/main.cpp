@@ -2487,8 +2487,6 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                 const COutPoint &prevout = tx.vin[i].prevout;
                 const CCoins *coins = inputs.AccessCoins(prevout.hash);
                 assert(coins);
-                if(tx.IsCoinStake())
-                    continue;
                 // Verify signature
                 CScriptCheck check(*coins, tx, i, flags, cacheStore, &txdata);
                 if (pvChecks) {
@@ -2934,7 +2932,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx) {
             const CCoins *coins = view.AccessCoins(tx.GetHash());
-            if (coins && !coins->IsPruned() && !tx.IsCoinStake())
+            if (coins && !coins->IsPruned())
                 return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"), REJECT_INVALID,
                                  "bad-txns-BIP30");
         }
@@ -3147,8 +3145,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     }
     // END ZNODE
 
-    // if (!control.Wait())
-    //     return state.DoS(100, false);
+    if (!control.Wait())
+        return state.DoS(100, false);
     int64_t nTime4 = GetTimeMicros();
     nTimeVerify += nTime4 - nTime2;
     LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2),
@@ -4606,9 +4604,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if (!sigma::CheckSigmaBlock(state, block)) {
             return false;
         }
-        //Check block signature,from blocksigner
-        if(block.IsProofOfStake())
-           CheckBlockSignature(block);
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
@@ -5057,6 +5052,8 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
                 last = last->pprev;
             }
         }
+    if (!CheckBlockSignature(block))
+        return error("%s : bad proof-of-stake block signature", __func__);
     }
     // Write block to history file
     try {
@@ -5074,7 +5071,6 @@ AcceptBlock(const CBlock &block, CValidationState &state, const CChainParams &ch
     } catch (const std::runtime_error &e) {
         return AbortNode(state, std::string("System error: ") + e.what());
     }
-
     if (fCheckForPruning)
         FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
     return true;
@@ -5124,7 +5120,6 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
     }
 
     znodeSync.GetBlockchainSynced(true);
-
     return true;
 }
 

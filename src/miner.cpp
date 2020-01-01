@@ -143,9 +143,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-    wallet = new CWallet(walletFile);
-
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
     bool fMTP;
@@ -469,6 +466,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         nLastBlockSize = nBlockSize;
 
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
+    }
+    {
             std::vector<const CWalletTx*> vwtxPrev;
     CAmount blockReward = nFees + GetBlockSubsidy(pindexPrev->nHeight + 1 , chainparams.GetConsensus(), nBlockTime);
      if(fProofOfStake && pindexPrev->nHeight +1 < chainparams.GetConsensus().nFirstPoSBlock){
@@ -506,9 +505,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             }
 
         }
-  }
         if (!fStakeFound)
             return nullptr;
+        }
+
     }
   
     {
@@ -536,8 +536,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         CValidationState state;
         LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
-        if(fProofOfStake)
-         pwalletMain->MintableCoins();
 
         LOCK(cs_main);
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
@@ -546,10 +544,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
     LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
-    if(fProofOfStake || !fStakeFound){
-        //Update stakeablecoins
-        LogPrintf("Updated stakeablecoins");
-        }
     return pblocktemplate.release();
 }
 
