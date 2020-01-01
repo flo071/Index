@@ -310,6 +310,9 @@ public:
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+        // Bip39.we have this from genesis itself
+        consensus.nMnemonicBlock = 0;
+
     }
 };
 
