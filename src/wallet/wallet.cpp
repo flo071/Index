@@ -1523,10 +1523,10 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey, const int cHDChainVersion) {
     return true;
 }
 
-bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain, bool genNewKeyPool) {
-    LOCK(cs_wallet);
+bool CWallet::SetHDChain(const CHDChain &chain, bool memonly, bool& upgradeChain, bool genNewKeyPool)
+{   LOCK(cs_wallet);
     upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
-    if (upgradeChain && !IsLocked()){ // Upgrade HDChain to latest version
+    if (upgradeChain && !IsLocked()) { // Upgrade HDChain to latest version
         CHDChain newChain;
         newChain.masterKeyID = chain.masterKeyID;
         newChain.nVersion = CHDChain::VERSION_WITH_BIP44; // old versions cannot use mnemonic
