@@ -86,7 +86,10 @@ public:
 	/** Zerocoin-related block numbers when features are changed */
 	int nSpendV15StartBlock;
 	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
-	
+	//Max consecutive pow params ,taken from Veil
+    int MaxConsecutivePoWBlocks() const { return nMaxPoWBlocks; }
+    int ConsecutivePoWHeight() const { return nConsecutivePoWHeight; }
+
 	int nModulusV2StartBlock;
     int nModulusV1MempoolStopBlock;
 	int nModulusV1StopBlock;
@@ -109,7 +112,11 @@ protected:
     bool fMineBlocksOnDemand;
     bool fTestnetToBeDeprecatedFieldRPC;
     CCheckpointData checkpointData;
-	
+
+    //Consecutive PoW params
+	int nMaxPoWBlocks;
+    int nConsecutivePoWHeight;
+
     /** znode params*/
     long nMaxTipAge;
     int nPoolMaxTransactions;

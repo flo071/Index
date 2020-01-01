@@ -4750,6 +4750,25 @@ bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
     CTransaction tx;
     return IsTransactionInChain(txId, nHeightTx, tx);
 }
+//Veil max consecutive PoW checker
+bool CheckConsecutivePoW(const CBlock& block, const CBlockIndex* pindexPrev) {
+    // the current block being PoS means that there are 0 consecutive PoW blocks
+    if (block.IsProofOfStake()) {
+        return true;
+    }
+
+    // iterate through previous block indexes until the genesis block is hit,
+    // a proof of stake block is hit, or the limit is reached for pow blocks
+    for (int i = 1; i <= Params().MaxConsecutivePoWBlocks(); i++) {
+        if (!pindexPrev || pindexPrev->IsProofOfStake()) {
+            return true;
+        }
+
+        pindexPrev = pindexPrev->pprev;
+    }
+
+    return false;
+}
 
 bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIndex *const pindexPrev) {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
@@ -4839,6 +4858,11 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
         return state.DoS(100, error("ContextualCheckBlock(): weight limit failed"), REJECT_INVALID, "bad-blk-weight");
     }
 
+    //Check for max consecutive proof-of-work blocks,taken from VeilProject
+    if (pindexPrev->nHeight >= Params().ConsecutivePoWHeight() && !CheckConsecutivePoW(block, pindexPrev)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-pow", false, "too many consecutive pow blocks");
+    }
+
     return true;
 }
 
@@ -4918,9 +4942,6 @@ static void AcceptProofOfStakeBlock(const CBlock &block, CBlockIndex *pindexNew)
         pindexNew->prevoutStake.SetNull();
         pindexNew->nStakeTime = 0;
     }
-
-    //update previous block pointer
-    //        pindexNew->pprev->pnext = pindexNew;
 
     // ppcoin: compute chain trust score
     pindexNew->bnChainTrust = (pindexNew->pprev ? pindexNew->pprev->bnChainTrust : ArithToUint256(0 + pindexNew->GetBlockTrust()));

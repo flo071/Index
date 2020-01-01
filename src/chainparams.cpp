@@ -267,7 +267,8 @@ public:
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = false;
-
+        nMaxPoWBlocks = 10;
+        nConsecutivePoWHeight = 300;
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
                     (0, genesis.GetHash()),
