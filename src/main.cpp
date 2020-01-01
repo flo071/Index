@@ -3134,7 +3134,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     LogPrintf("coinbaseTransaction will be %s\n",!isPoWBlock ? "block.vtx[1]" : "block.vtx[0]");
     std::string strError = "";
     const auto& coinbaseTransaction = (!isPoWBlock ? block.vtx[1] : block.vtx[0]);
-    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
+    if (!IsBlockValueValid(block, pindex->nHeight, blockReward, pindex->nMint, strError)) {
         return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 

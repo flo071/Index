@@ -64,7 +64,6 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
     arith_uint256 bnPastTargetAvg;
         // Only consider PoW or PoS blocks but not both
         if (pindex->IsProofOfStake() != fProofOfStake) {
-            LogPrintf("Calledheeeee/n");
             pindex = pindex->pprev;
         } else if (!pindexLast) {
             pindexLast = pindex;
